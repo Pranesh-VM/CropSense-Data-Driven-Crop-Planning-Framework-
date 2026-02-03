@@ -1,0 +1,90 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# ML Models (too large to commit)
+models/*.pkl
+models/*.joblib
+models/random_forest.pkl
+models/xgboost.pkl
+models/catboost.pkl
+models/svm.pkl
+models/ensemble.pkl
+models/scaler.pkl
+models/label_encoder.pkl
+
+# Data (raw data)
+data/raw/*.csv
+data/*.csv
+dataset/*.csv
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# IDE settings
+.vscode/settings.json
+.idea/workspace.xml
+
+# CSV outputs
+*.csv.gz
+*.feather
