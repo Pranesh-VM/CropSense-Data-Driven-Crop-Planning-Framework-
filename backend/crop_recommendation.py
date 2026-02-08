@@ -45,17 +45,24 @@ class FarmerCropRecommender:
 
     def recommend(self, N, P, K, temperature, humidity, ph, rainfall):
         """
-        Recommend the best crop for the given parameters.
+        Recommend the top 3 crops for the given parameters.
         Args:
             N, P, K, temperature, humidity, ph, rainfall: float
         Returns:
-            dict: { 'predicted_crop': str, 'confidence': float }
+            dict: { 'top_3_crops': [{'crop': str, 'confidence': float}, ...] }
         """
         # Assemble feature vector in required order
         features = [N, P, K, temperature, humidity, ph, rainfall]
         X = self.preprocessor.scaler.transform([features])
-        pred = self.ensemble.predict(X)[0]
         proba = self.ensemble.predict_proba(X)[0]
-        confidence = max(proba)
-        crop = self.preprocessor.label_encoder.inverse_transform([pred])[0]
-        return {'predicted_crop': crop, 'confidence': float(confidence)}
+        
+        # Get top 3 indices and their probabilities
+        top_3_indices = np.argsort(proba)[-3:][::-1]
+        top_3_crops = []
+        
+        for idx in top_3_indices:
+            crop = self.preprocessor.label_encoder.inverse_transform([idx])[0]
+            confidence = float(proba[idx])
+            top_3_crops.append({'crop': crop, 'confidence': confidence})
+        
+        return {'top_3_crops': top_3_crops}
