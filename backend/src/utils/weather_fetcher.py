@@ -62,6 +62,7 @@ class WeatherAPIFetcher:
             Dictionary with current weather or None if API fails
         """
         if not self.api_key:
+            print("Warning: No OpenWeatherMap API key configured")
             return None
         
         try:
@@ -86,10 +87,46 @@ class WeatherAPIFetcher:
                     'timestamp': datetime.fromtimestamp(data['dt']).isoformat(),
                     'description': data['weather'][0]['description']
                 }
+            else:
+                print(f"Weather API error - Status {response.status_code}: {response.text}")
+                return None
+                
+        except requests.exceptions.Timeout:
+            print(f"Weather API timeout for location ({latitude}, {longitude})")
+            return None
+        except requests.exceptions.ConnectionError:
+            print(f"Weather API connection error for location ({latitude}, {longitude})")
+            return None
         except Exception as e:
             print(f"Error fetching current weather: {e}")
         
         return None
+    
+    def get_mock_weather(self, latitude: float, longitude: float) -> Dict:
+        """
+        Get mock weather data for testing when API is unavailable.
+        
+        Args:
+            latitude: GPS latitude
+            longitude: GPS longitude
+        
+        Returns:
+            Dictionary with simulated weather data
+        """
+        import random
+        
+        # Generate realistic mock data based on location
+        base_temp = 25 + (latitude / 10)  # Vary by latitude
+        
+        return {
+            'temperature': round(base_temp + random.uniform(-5, 5), 2),
+            'humidity': random.randint(40, 85),
+            'rainfall': round(random.uniform(0, 50), 2) if random.random() > 0.7 else 0,  # 30% chance of rain
+            'feels_like': round(base_temp + random.uniform(-3, 3), 2),
+            'pressure': random.randint(1000, 1020),
+            'timestamp': datetime.now().isoformat(),
+            'description': 'scattered clouds'
+        }
     
     def get_forecast_weather(self, latitude: float, longitude: float, days: int = 5) -> Optional[List[Dict]]:
         """
