@@ -331,25 +331,39 @@ def get_rindm_recommendations(current_user):
 def start_rindm_cycle(current_user):
     """
     Start a new RINDM cycle with selected crop.
+    Fetches nutrient values from previous recommendation - no need to provide again.
     
     POST /api/rindm/start-cycle
     Headers: Authorization: Bearer <token>
     Body: {
         "recommendation_id": 123,
         "selected_crop": "rice",
-        "N": 90,
-        "P": 42,
-        "K": 43,
-        "ph": 6.5,
-        "soil_type": "loamy"  # or provide sand_pct, silt_pct, clay_pct
+        "soil_type": "loamy"
     }
     """
     try:
         data = request.get_json()
-        required = ['selected_crop', 'N', 'P', 'K', 'ph', 'soil_type']
+        required = ['recommendation_id', 'selected_crop', 'soil_type']
         
         if not all(field in data for field in required):
-            return jsonify({'error': 'Missing required fields'}), 400
+            return jsonify({'error': 'Missing required fields: recommendation_id, selected_crop, soil_type'}), 400
+        
+        # Fetch nutrient values from recommendation
+        with db.get_connection() as (conn, cursor):
+            cursor.execute("""
+                SELECT n_kg_ha, p_kg_ha, k_kg_ha, ph
+                FROM cycle_recommendations
+                WHERE recommendation_id = %s AND farmer_id = %s
+            """, (data['recommendation_id'], current_user['farmer_id']))
+            
+            recommendation = cursor.fetchone()
+            if not recommendation:
+                return jsonify({'error': 'Recommendation not found or unauthorized'}), 404
+            
+            initial_n = float(recommendation['n_kg_ha'])
+            initial_p = float(recommendation['p_kg_ha'])
+            initial_k = float(recommendation['k_kg_ha'])
+            initial_ph = float(recommendation['ph'])
         
         # Get farmer's field
         with db.get_connection() as (conn, cursor):
@@ -365,17 +379,17 @@ def start_rindm_cycle(current_user):
             
             field_id = field['field_id']
         
-        # Start cycle
+        # Start cycle with fetched nutrient values
         result = cycle_manager.start_new_cycle(
             farmer_id=current_user['farmer_id'],
             field_id=field_id,
             selected_crop=data['selected_crop'],
-            initial_n=float(data['N']),
-            initial_p=float(data['P']),
-            initial_k=float(data['K']),
-            initial_ph=float(data['ph']),
+            initial_n=initial_n,
+            initial_p=initial_p,
+            initial_k=initial_k,
+            initial_ph=initial_ph,
             soil_type=data['soil_type'],
-            recommendation_id=data.get('recommendation_id')
+            recommendation_id=data['recommendation_id']
         )
         
         return jsonify(result), 201 if result['success'] else 400

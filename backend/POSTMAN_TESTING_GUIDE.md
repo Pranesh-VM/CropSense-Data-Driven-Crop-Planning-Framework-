@@ -292,7 +292,7 @@ Content-Type: application/json
 
 ### 6️⃣ START RINDM CYCLE
 
-**Purpose:** Start monitoring cycle with selected crop
+**Purpose:** Start monitoring cycle with selected crop (nutrients auto-fetched from recommendation)
 
 **Request:**
 ```
@@ -310,29 +310,16 @@ Content-Type: application/json
 {
   "recommendation_id": 1,
   "selected_crop": "rice",
-  "N": 90,
-  "P": 42,
-  "K": 43,
-  "ph": 6.5,
   "soil_type": "loamy"
 }
 ```
 
-**Alternative (with soil texture):**
-```json
-{
-  "recommendation_id": 1,
-  "selected_crop": "rice",
-  "N": 90,
-  "P": 42,
-  "K": 43,
-  "ph": 6.5,
-  "soil_type": "loamy",
-  "sand_pct": 40,
-  "silt_pct": 40,
-  "clay_pct": 20
-}
-```
+**Note:** Nutrient values (N, P, K, pH) are automatically fetched from the recommendation. No need to provide them again!
+
+**Supported soil_type values:**
+- `"loamy"` - For loamy soil
+- `"sandy"` - For sandy soil
+- `"clay"` - For clay soil
 
 **Expected Response (201 Created):**
 ```json
@@ -362,9 +349,10 @@ Content-Type: application/json
 **✅ CYCLE NOW ACTIVE!** Background monitor will check weather every 60 minutes automatically.
 
 **Possible Errors:**
+- 400: "Missing required fields" - Check recommendation_id, selected_crop, soil_type
 - 401: Missing/invalid token
-- 400: Invalid crop name
-- 404: No field found for farmer
+- 404: "Recommendation not found" - Use valid recommendation_id from step 5
+- 404: "No field found for farmer" - Create a field first
 
 ---
 
@@ -746,11 +734,8 @@ Headers:
   Content-Type: application/json
 Body:
 {
+  "recommendation_id": 1,
   "selected_crop": "rice",
-  "N": 90,
-  "P": 42,
-  "K": 43,
-  "ph": 6.5,
   "soil_type": "loamy"
 }
 ```
