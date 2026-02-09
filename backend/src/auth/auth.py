@@ -176,11 +176,7 @@ class FarmerAuthService:
         username: str,
         email: str,
         password: str,
-        name: str,
-        phone: str = None,
-        location: str = None,
-        latitude: float = None,
-        longitude: float = None
+        phone: str = None
     ) -> Dict:
         """
         Register a new farmer.
@@ -189,10 +185,7 @@ class FarmerAuthService:
             username: Unique username
             email: Unique email
             password: Plain text password (will be hashed)
-            name: Farmer's full name
             phone: Phone number (optional)
-            location: Location string (optional)
-            latitude, longitude: GPS coordinates (optional)
             
         Returns:
             Dictionary with success status and token/error
@@ -215,12 +208,11 @@ class FarmerAuthService:
             with self.db.get_connection() as (conn, cursor):
                 cursor.execute("""
                     INSERT INTO farmers (
-                        username, email, password_hash, name, phone, 
-                        location, latitude, longitude
+                        username, email, password_hash, phone
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING farmer_id, username, email, name
-                """, (username, email, password_hash, name, phone, location, latitude, longitude))
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING farmer_id, username, email
+                """, (username, email, password_hash, phone))
                 
                 farmer = dict(cursor.fetchone())
                 
@@ -272,7 +264,7 @@ class FarmerAuthService:
             with self.db.get_connection() as (conn, cursor):
                 # Find farmer by username or email
                 cursor.execute("""
-                    SELECT farmer_id, username, email, password_hash, name, is_active
+                    SELECT farmer_id, username, email, password_hash, is_active
                     FROM farmers
                     WHERE username = %s OR email = %s
                 """, (username_or_email, username_or_email))
@@ -323,7 +315,6 @@ class FarmerAuthService:
                         'farmer_id': farmer['farmer_id'],
                         'username': farmer['username'],
                         'email': farmer['email'],
-                        'name': farmer['name']
                     },
                     'field_id': field_id,
                     'token': token,
@@ -339,8 +330,8 @@ class FarmerAuthService:
             with self.db.get_connection() as (conn, cursor):
                 cursor.execute("""
                     SELECT 
-                        farmer_id, username, email, name, phone, 
-                        location, latitude, longitude, created_at, last_login
+                        farmer_id, username, email, phone, 
+                        created_at, last_login
                     FROM farmers
                     WHERE farmer_id = %s
                 """, (farmer_id,))

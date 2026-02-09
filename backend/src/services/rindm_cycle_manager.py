@@ -137,9 +137,9 @@ class RINDMCycleManager:
             cursor.execute("""
                 INSERT INTO nutrient_measurements (
                     cycle_id, measurement_type, n_kg_ha, p_kg_ha, k_kg_ha,
-                    n_status, p_status, k_status, below_threshold
+                    below_threshold, notes
                 )
-                VALUES (%s, 'cycle_start', %s, %s, %s, 'GOOD', 'GOOD', 'GOOD', FALSE)
+                VALUES (%s, 'cycle_start', %s, %s, %s, FALSE, 'Cycle started')
             """, (cycle_id, initial_n, initial_p, initial_k))
         
         return {
@@ -174,16 +174,15 @@ class RINDMCycleManager:
         Returns:
             Dictionary with rainfall status and nutrient updates
         """
-        # Get cycle info with fallback to farmer location
+        # Get cycle info with location from field
         with self.db.get_connection() as (conn, cursor):
             cursor.execute("""
                 SELECT 
                     cc.*,
-                    COALESCE(f.latitude, fa.latitude) as latitude,
-                    COALESCE(f.longitude, fa.longitude) as longitude
+                    f.latitude,
+                    f.longitude
                 FROM crop_cycles cc
                 JOIN fields f ON cc.field_id = f.field_id
-                JOIN farmers fa ON cc.farmer_id = fa.farmer_id
                 WHERE cc.cycle_id = %s AND cc.status = 'active'
             """, (cycle_id,))
             
@@ -338,17 +337,15 @@ class RINDMCycleManager:
             cursor.execute("""
                 INSERT INTO nutrient_measurements (
                     cycle_id, measurement_type, n_kg_ha, p_kg_ha, k_kg_ha,
-                    n_status, p_status, k_status, below_threshold,
-                    notes
+                    below_threshold, notes
                 )
                 VALUES (
                     %s, 'rainfall_update', %s, %s, %s,
-                    %s, %s, %s, %s,
+                    %s,
                     %s
                 )
             """, (
                 cycle_id, new_n, new_p, new_k,
-                status['N']['level'], status['P']['level'], status['K']['level'],
                 status['needs_soil_test'],
                 f'Rainfall: {rainfall_mm}mm, Losses: N={loss_result["N_loss"]}, P={loss_result["P_loss"]}, K={loss_result["K_loss"]}'
             ))
@@ -363,16 +360,12 @@ class RINDMCycleManager:
                 cursor.execute("""
                     INSERT INTO soil_test_recommendations (
                         cycle_id, farmer_id, reason,
-                        critical_n, critical_p, critical_k,
                         current_n_kg_ha, current_p_kg_ha, current_k_kg_ha,
-                        message
+                        message, status
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')
                 """, (
                     cycle_id, farmer_id, 'low_nutrients',
-                    status['N']['level'] == 'CRITICAL',
-                    status['P']['level'] == 'CRITICAL',
-                    status['K']['level'] == 'CRITICAL',
                     new_n, new_p, new_k,
                     status['soil_test_message']
                 ))

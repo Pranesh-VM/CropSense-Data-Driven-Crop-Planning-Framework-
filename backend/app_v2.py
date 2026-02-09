@@ -66,30 +66,22 @@ def signup():
         "username": "farmer123",
         "email": "farmer@example.com",
         "password": "password123",
-        "name": "John Farmer",
-        "phone": "+919876543210",
-        "location": "Chennai, Tamil Nadu",
-        "latitude": 13.0827,
-        "longitude": 80.2707
+        "phone": "+919876543210"
     }
     """
     try:
         data = request.get_json()
         
         # Required fields
-        required = ['username', 'email', 'password', 'name']
+        required = ['username', 'email', 'password']
         if not all(field in data for field in required):
-            return jsonify({'error': 'Missing required fields'}), 400
+            return jsonify({'error': 'Missing required fields: username, email, password'}), 400
         
         result = auth_service.register_farmer(
             username=data['username'],
             email=data['email'],
             password=data['password'],
-            name=data['name'],
-            phone=data.get('phone'),
-            location=data.get('location'),
-            latitude=data.get('latitude'),
-            longitude=data.get('longitude')
+            phone=data.get('phone')
         )
         
         if result['success']:
@@ -305,6 +297,15 @@ def get_rindm_recommendations(current_user):
             
             recommendation_id = cursor.fetchone()['recommendation_id']
         
+        # Update field with location for weather monitoring
+        if 'latitude' in data and 'longitude' in data:
+            with db.get_connection() as (conn, cursor):
+                cursor.execute("""
+                    UPDATE fields 
+                    SET latitude = %s, longitude = %s
+                    WHERE farmer_id = %s
+                """, (data['latitude'], data['longitude'], current_user['farmer_id']))
+        
         return jsonify({
             'success': True,
             'recommendation_id': recommendation_id,
@@ -441,7 +442,10 @@ def get_active_cycle(current_user):
     try:
         with db.get_connection() as (conn, cursor):
             cursor.execute("""
-                SELECT * FROM get_active_cycle(%s)
+                SELECT * FROM crop_cycles
+                WHERE farmer_id = %s AND status = 'active'
+                ORDER BY created_at DESC
+                LIMIT 1
             """, (current_user['farmer_id'],))
             
             cycle = cursor.fetchone()

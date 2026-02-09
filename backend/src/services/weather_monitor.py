@@ -67,12 +67,10 @@ class WeatherMonitor:
                     cc.current_p_kg_ha,
                     cc.current_k_kg_ha,
                     cc.last_weather_check,
-                    f.farmer_id,
-                    f.name as farmer_name,
                     f.latitude,
                     f.longitude
                 FROM crop_cycles cc
-                JOIN farmers f ON cc.farmer_id = f.farmer_id
+                JOIN fields f ON cc.field_id = f.field_id
                 WHERE cc.status = 'active'
                 ORDER BY cc.last_weather_check ASC
             """)

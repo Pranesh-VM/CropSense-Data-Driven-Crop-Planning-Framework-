@@ -91,13 +91,11 @@ Content-Type: application/json
   "username": "ramesh_farmer",
   "email": "ramesh@example.com",
   "password": "test123456",
-  "name": "Ramesh Kumar",
-  "phone": "+919876543210",
-  "location": "Chennai, Tamil Nadu",
-  "latitude": 13.0827,
-  "longitude": 80.2707
+  "phone": "+919876543210"
 }
 ```
+
+**Note:** Name, location, latitude, longitude will be collected later during crop recommendation or cycle start.
 
 **Expected Response (201 Created):**
 ```json
@@ -106,8 +104,7 @@ Content-Type: application/json
   "farmer": {
     "farmer_id": 1,
     "username": "ramesh_farmer",
-    "email": "ramesh@example.com",
-    "name": "Ramesh Kumar"
+    "email": "ramesh@example.com"
   },
   "field_id": 1,
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmYXJtZXJfaWQiOjEsInVzZXJuYW1lIjoicmFtZXNoX2Zhcm1lciIsImVtYWlsIjoicmFtZXNoQGV4YW1wbGUuY29tIiwiZXhwIjoxNzM5Mzc2MDAwLCJpYXQiOjE3Mzg3NzEyMDB9.abc123...",
@@ -120,7 +117,7 @@ Content-Type: application/json
 **Possible Errors:**
 - 400: "Username already exists" - Change username
 - 400: "Email already registered" - Change email
-- 400: "Missing required fields" - Check all fields present
+- 400: "Missing required fields: username, email, password" - Check all required fields present
 
 ---
 
@@ -209,16 +206,14 @@ Authorization: Bearer {{auth_token}}
     "farmer_id": 1,
     "username": "ramesh_farmer",
     "email": "ramesh@example.com",
-    "name": "Ramesh Kumar",
     "phone": "+919876543210",
-    "location": "Chennai, Tamil Nadu",
-    "latitude": "13.08270000",
-    "longitude": "80.27070000",
     "created_at": "2026-02-07T10:30:00",
     "last_login": "2026-02-07T10:35:00"
   }
 }
 ```
+
+**Note:** Name, location, latitude, longitude are collected during crop recommendation or cycle start, not maintained on farmer profile.
 
 **Possible Errors:**
 - 401: "No token provided" - Add Authorization header
@@ -703,7 +698,7 @@ Body:
   "username": "test_farmer",
   "email": "test@example.com",
   "password": "test123",
-  "name": "Test Farmer"
+  "phone": "+919876543210"
 }
 ```
 

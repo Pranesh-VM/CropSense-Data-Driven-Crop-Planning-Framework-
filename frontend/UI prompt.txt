@@ -1,0 +1,403 @@
+choose React(Web) and move to frontend directory
+
+I need you to create a complete React(web) app using materialUI for frontend to my CropSense backend application. This is an agricultural nutrient management system that helps farmers track crop cycles and soil nutrients.
+
+═══════════════════════════════════════════════════════════════════
+PART 1: PROJECT CONTEXT
+═══════════════════════════════════════════════════════════════════
+
+PROJECT NAME: CropSense - Agricultural Nutrient Management System
+
+PURPOSE: Help Indian farmers manage soil nutrients through continuous crop cycles, with automatic rainfall tracking and nutrient depletion calculations.
+
+TARGET USERS: 
+- Rural farmers in India (primarily Tamil Nadu)
+- Age: 25-60 years
+- Tech literacy: Basic (can use WhatsApp)
+
+USER WORKFLOW:
+1. Farmer creates account
+2. Enters soil nutrient data (N, P, K, pH)
+3. Gets top 3 crop recommendations from AI
+4. Selects a crop and starts monitoring cycle
+5. System automatically tracks rainfall and updates nutrients in real-time
+6. Farmer sees current nutrient status, warnings, and progress
+7. After harvest, system calculates final nutrients
+8. If nutrients are sufficient, farmer starts next cycle
+9. If nutrients are too low, system recommends soil testing
+
+═══════════════════════════════════════════════════════════════════
+PART 2: BACKEND API DOCUMENTATION
+═══════════════════════════════════════════════════════════════════
+
+BASE URL: http://localhost:5000
+
+AUTHENTICATION: JWT Bearer Token (in Authorization header)
+
+AVAILABLE ENDPOINTS:
+
+1. POST /api/auth/signup
+   Body: { username, email, password, name, phone, location, latitude, longitude }
+   Response: { success, farmer, token }
+
+2. POST /api/auth/login
+   Body: { username, password }
+   Response: { success, farmer, token }
+
+3. GET /api/auth/profile
+   Headers: Authorization: Bearer <token>
+   Response: { success, profile }
+
+4. POST /api/rindm/get-recommendations
+   Headers: Authorization: Bearer <token>
+   Body: { N, P, K, ph, latitude, longitude }
+   Response: { success, recommendation_id, recommendations: { predicted_crop, confidence, crop_1, crop_2, crop_3 }, nutrients, weather }
+
+5. POST /api/rindm/start-cycle
+   Headers: Authorization: Bearer <token>
+   Body: { recommendation_id, selected_crop, N, P, K, ph, soil_type }
+   Response: { success, cycle_id, crop, start_date, expected_end_date, duration_days, current_nutrients, crop_requirements }
+
+6. GET /api/rindm/active-cycle
+   Headers: Authorization: Bearer <token>
+   Response: { success, has_active_cycle, cycle: { cycle_id, status, crop, progress, current_nutrients, nutrient_status, rainfall_events } }
+
+7. GET /api/rindm/cycle-status/{cycle_id}
+   Headers: Authorization: Bearer <token>
+   Response: { success, cycle_id, status, crop, progress, current_nutrients, nutrient_status }
+
+8. GET /api/rindm/history
+   Headers: Authorization: Bearer <token>
+   Response: { success, cycles: [...] }
+
+9. POST /api/rindm/complete-cycle/{cycle_id}
+   Headers: Authorization: Bearer <token>
+   Response: { success, final_nutrients, depletion_summary, below_threshold, can_continue }
+
+═══════════════════════════════════════════════════════════════════
+PART 3: TECHNICAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════════
+
+TECH STACK:
+✅ React 18 with Vite
+✅ React Router for navigation
+✅ TailwindCSS and materialUI for styling
+✅ React Query (TanStack Query) for API calls
+✅ Axios for HTTP requests
+✅ Recharts for nutrient graphs/charts
+
+DESIGN PRINCIPLES:
+- Clean, modern, farmer-friendly UI
+- Large buttons and text (easy to tap/read)
+- Green/nature theme (agriculture context)
+- Clear visual hierarchy
+- Progress indicators for cycles
+- Color-coded nutrient status (red=critical, orange=low, yellow=moderate, green=good)
+- Minimal text, more icons and visuals
+- Fast loading (optimize for slow connections)
+
+ACCESSIBILITY:
+- Support Tamil and English (i18n ready)
+- High contrast for outdoor visibility
+- Large touch targets (min 44px)
+- Simple navigation (max 3 levels deep)
+
+═══════════════════════════════════════════════════════════════════
+PART 4: REQUIRED PAGES/COMPONENTS
+═══════════════════════════════════════════════════════════════════
+
+PAGES NEEDED:
+
+1. AUTHENTICATION
+   - /login - Login page
+   - /signup - Registration page
+   - /welcome - Landing page (for non-logged in users)
+
+2. DASHBOARD
+   - /dashboard - Main dashboard showing:
+     * Active cycle status (if any)
+     * Current nutrients with color-coded bars
+     * Quick actions (start cycle, view history)
+     * Recent alerts/warnings
+
+3. RINDM CYCLE FLOW
+   - /new-cycle/step1 - Enter soil data (N, P, K, pH)
+   - /new-cycle/step2 - View top 3 crop recommendations
+   - /new-cycle/step3 - Confirm and start cycle
+   - /cycle/active - Active cycle monitoring page showing:
+     * Crop name and image
+     * Days elapsed / remaining
+     * Progress bar
+     * Current nutrient levels (N, P, K) with graphs
+     * Rainfall events log
+     * Warnings if any
+   - /cycle/history - List of all past cycles
+
+4. PROFILE
+   - /profile - User profile and settings
+
+COMPONENTS NEEDED:
+
+1. Layout Components:
+   - Header (with logout, user info)
+   - Sidebar/BottomNav (mobile navigation)
+   - ProtectedRoute (auth wrapper)
+
+2. Nutrient Components:
+   - NutrientBar (shows N/P/K with color coding)
+   - NutrientChart (line/bar chart showing depletion over time)
+   - NutrientStatus (card showing status with icon and message)
+
+3. Cycle Components:
+   - CropCard (displays crop with image, name, requirements)
+   - ProgressRing (circular progress for cycle completion)
+   - RainfallLog (list of rainfall events)
+   - TimelineView (shows cycle milestones)
+
+4. Form Components:
+   - SoilDataForm (N, P, K, pH inputs with validation)
+   - LocationPicker (lat/long or use browser geolocation)
+
+5. Alert Components:
+   - WarningBanner (critical nutrient alerts)
+   - NotificationBell (shows pending alerts)
+
+═══════════════════════════════════════════════════════════════════
+PART 5: DESIRED FILE STRUCTURE
+═══════════════════════════════════════════════════════════════════
+
+src/
+├── App.jsx
+├── main.jsx
+├── index.css
+├── pages/
+│   ├── auth/
+│   │   ├── Login.jsx
+│   │   ├── Signup.jsx
+│   │   └── Welcome.jsx
+│   ├── dashboard/
+│   │   └── Dashboard.jsx
+│   ├── cycle/
+│   │   ├── NewCycleStep1.jsx (soil data input)
+│   │   ├── NewCycleStep2.jsx (recommendations)
+│   │   ├── NewCycleStep3.jsx (start confirmation)
+│   │   ├── ActiveCycle.jsx
+│   │   └── CycleHistory.jsx
+│   └── profile/
+│       └── Profile.jsx
+├── components/
+│   ├── layout/
+│   │   ├── Header.jsx
+│   │   ├── Sidebar.jsx
+│   │   └── ProtectedRoute.jsx
+│   ├── nutrients/
+│   │   ├── NutrientBar.jsx
+│   │   ├── NutrientChart.jsx
+│   │   └── NutrientStatus.jsx
+│   ├── cycle/
+│   │   ├── CropCard.jsx
+│   │   ├── ProgressRing.jsx
+│   │   └── RainfallLog.jsx
+│   └── common/
+│       ├── Button.jsx
+│       ├── Input.jsx
+│       ├── Card.jsx
+│       └── Alert.jsx
+├── services/
+│   ├── api.js (axios instance, API calls)
+│   └── auth.js (token management)
+├── hooks/
+│   ├── useAuth.js
+│   ├── useCycle.js
+│   └── useNutrients.js
+├── utils/
+│   ├── constants.js
+│   └── helpers.js
+└── assets/
+    └── images/
+
+═══════════════════════════════════════════════════════════════════
+PART 6: SPECIFIC REQUIREMENTS
+═══════════════════════════════════════════════════════════════════
+
+AUTHENTICATION:
+- Store JWT token in localStorage
+- Auto-redirect to login if token missing/expired
+- Show user name in header
+- Logout clears token and redirects to welcome
+
+DASHBOARD:
+- Show "No active cycle" message if farmer hasn't started one
+- Show active cycle card with key metrics if cycle exists
+- Quick action buttons: "Start New Cycle", "View History"
+- Display warnings prominently if nutrients are critical
+
+NUTRIENT VISUALIZATION:
+- Use color coding:
+  * Red (< 30 N, < 10 P, < 40 K) = CRITICAL
+  * Orange (< 60 N, < 20 P, < 80 K) = LOW
+  * Yellow (< 100 N, < 30 P, < 120 K) = MODERATE
+  * Green (>= 100 N, >= 30 P, >= 120 K) = GOOD
+- Show bar charts for current levels
+- Line chart showing nutrient depletion over time in active cycle
+
+CYCLE MONITORING:
+- Real-time updates (poll every 30 seconds when on active cycle page)
+- Show rainfall events as timeline
+- Display warnings when nutrients drop below threshold
+- Show "X days remaining" countdown
+- Progress percentage visualization
+
+ERROR HANDLING:
+- Show user-friendly error messages
+- Retry failed API calls
+- Offline mode message
+- Loading states for all async operations
+
+RESPONSIVE DESIGN:
+- Mobile-first approach
+- Bottom navigation for mobile
+- Sidebar for desktop
+- Collapsible sections on mobile
+- Touch-friendly buttons (min 44px)
+
+
+═══════════════════════════════════════════════════════════════════
+PART 8: DELIVERABLES REQUESTED
+═══════════════════════════════════════════════════════════════════
+
+Please provide:
+
+1. Complete React project setup with Vite
+2. All page components (fully implemented)
+3. All reusable components
+4. API service layer with error handling
+5. Custom hooks for auth and data fetching
+6. TailwindCSS configuration
+7. React Router setup
+8. React Query setup
+9. README with setup instructions
+10. Environment variables template (.env.example)
+
+═══════════════════════════════════════════════════════════════════
+PART 9: VISUAL DESIGN PREFERENCES
+═══════════════════════════════════════════════════════════════════
+
+COLOR SCHEME:
+- Primary: Green (#10B981 - emerald-500)
+- Secondary: Blue (#3B82F6 - blue-500)
+- Success: Green (#22C55E - green-500)
+- Warning: Yellow (#EAB308 - yellow-500)
+- Error: Red (#EF4444 - red-500)
+- Background: Light gray (#F9FAFB - gray-50)
+- Text: Dark gray (#111827 - gray-900)
+
+TYPOGRAPHY:
+- Font: Inter or System UI
+- Headers: Bold, large
+- Body: Regular, readable (min 16px)
+- Numbers: Tabular for nutrient values
+
+SPACING:
+- Generous padding (mobile tap targets)
+- Clear visual separation between sections
+- Card-based layout
+
+═══════════════════════════════════════════════════════════════════
+PART 10: EXAMPLE SCREENS (WHAT I'M ENVISIONING)
+═══════════════════════════════════════════════════════════════════
+
+DASHBOARD EXAMPLE:
+┌─────────────────────────────────┐
+│ 🌾 CropSense    👤 Ramesh  [≡]  │
+├─────────────────────────────────┤
+│                                 │
+│  Active Cycle: Rice             │
+│  ├─ Day 45 of 120               │
+│  ├─ 37% Complete [▓▓▓░░░░░]     │
+│  └─ 75 days remaining           │
+│                                 │
+│  Current Nutrients:             │
+│  ┌─────────────────────────┐   │
+│  │ N: 72.5 kg/ha [▓▓▓▓░] 🟡│   │
+│  │ P: 35.2 kg/ha [▓▓▓▓▓] 🟢│   │
+│  │ K: 28.1 kg/ha [▓▓░░░] 🟠│   │
+│  └─────────────────────────┘   │
+│                                 │
+│  ⚠️ Warning: K approaching low  │
+│                                 │
+│  [View Details] [History]       │
+└─────────────────────────────────┘
+
+RECOMMENDATIONS SCREEN:
+┌─────────────────────────────────┐
+│ ← Select Crop                   │
+├─────────────────────────────────┤
+│  Based on your soil:            │
+│  N: 90 | P: 42 | K: 43          │
+│                                 │
+│  Top 3 Recommendations:         │
+│                                 │
+│  🥇 Rice                         │
+│  ├─ Confidence: 95%             │
+│  ├─ Duration: 120 days          │
+│  ├─ Needs: N:120, P:40, K:140   │
+│  └─ [Select This Crop]          │
+│                                 │
+│  🥈 Maize                        │
+│  ├─ Confidence: 89%             │
+│  ├─ Duration: 100 days          │
+│  └─ [Select]                    │
+│                                 │
+│  🥉 Cotton                       │
+│  ├─ Confidence: 76%             │
+│  └─ [Select]                    │
+└─────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+PART 11: IMPLEMENTATION APPROACH
+═══════════════════════════════════════════════════════════════════
+
+Please implement in this order:
+
+PHASE 1 - Setup & Auth (Priority 1):
+1. Project setup with Vite + React + Tailwind
+2. Folder structure
+3. API service layer
+4. Auth context and hooks
+5. Login page
+6. Signup page
+7. Protected route wrapper
+
+PHASE 2 - Dashboard & Navigation (Priority 2):
+8. Layout components (Header, Sidebar)
+9. Dashboard page
+10. Navigation setup
+
+PHASE 3 - Cycle Management (Priority 3):
+11. New cycle flow (3 steps)
+12. Active cycle monitoring page
+13. Nutrient visualization components
+14. Cycle history page
+
+PHASE 4 - Polish (Priority 4):
+15. Error handling
+16. Loading states
+17. Responsive design refinement
+
+═══════════════════════════════════════════════════════════════════
+ADDITIONAL NOTES
+═══════════════════════════════════════════════════════════════════
+
+- Use React Query for all API calls (automatic caching, refetching)
+- Implement optimistic updates where appropriate
+- Add loading skeletons for better UX
+- Use React Hook Form for forms (with validation)
+- Add toast notifications for success/error messages
+- Implement auto-refresh on active cycle page (every 30s)
+- Add confirmation dialogs for critical actions
+- Support both light and dark mode (optional but nice)
+
+Please start implementing and provide the code incrementally, beginning with Phase 1. After each phase, I'll review and we can proceed to the next.
+
+If you need any clarification or have suggestions for improvement, please ask before starting.
