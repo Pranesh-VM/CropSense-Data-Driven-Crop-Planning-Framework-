@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 CORS & API Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Simple GET Request</h2>
+        <button onclick="testSimpleGet()">Test GET Request</button>
+        <div id="test1-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Signup Endpoint (POST)</h2>
+        <button onclick="testSignup()">Test Signup</button>
+        <div id="test2-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Login Endpoint (POST)</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="test3-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Protected Endpoint (with Auth)</h2>
+        <button onclick="testProtectedEndpoint()">Test Protected Route</button>
+        <div id="test4-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        let authToken = null;
+
+        async function testSimpleGet() {
+            const resultDiv = document.getElementById('test1-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'OPTIONS',
+                });
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✓ OPTIONS Request Successful</strong><br>
+                    Status: ${response.status}<br>
+                    CORS Headers:<br>
+                    <pre>${JSON.stringify({
+                        'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                        'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                        'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    }, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>✗ Error:</strong><br>${error.message}`;
+            }
+        }
+
+        async function testSignup() {
+            const resultDiv = document.getElementById('test2-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const randomNum = Math.floor(Math.random() * 10000);
+                const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: `testuser${randomNum}`,
+                        email: `test${randomNum}@test.com`,
+                        password: 'test123',
+                        phone: '1234567890'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Signup Successful</strong><br>
+                        Status: ${response.status}<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>✗ Signup Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>✗ Error:</strong><br>${error.message}`;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('test3-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'testuser',
+                        password: 'test123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Login Successful</strong><br>
+                        Status: ${response.status}<br>
+                        Token saved for protected endpoint test<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>✗ Login Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>✗ Error:</strong><br>${error.message}`;
+            }
+        }
+
+        async function testProtectedEndpoint() {
+            const resultDiv = document.getElementById('test4-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = 'Testing...';
+
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<strong>✗ No auth token!</strong><br>Please login first (Test 3)';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/rindm/active-cycle`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✓ Protected Route Accessible</strong><br>
+                        Status: ${response.status}<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>✗ Protected Route Failed</strong><br>
+                        Status: ${response.status}<br>
+                        Response:<br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>✗ Error:</strong><br>${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

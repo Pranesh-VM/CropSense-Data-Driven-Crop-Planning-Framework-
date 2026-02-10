@@ -480,7 +480,7 @@ class RINDMCycleManager:
         }
     
     def get_cycle_status(self, cycle_id: int) -> Dict:
-        """Get current status of a cycle."""
+        """Get current status of a cycle with complete details."""
         with self.db.get_connection() as (conn, cursor):
             cursor.execute("""
                 SELECT 
@@ -499,6 +499,37 @@ class RINDMCycleManager:
             
             cycle = dict(cycle)
             
+            # Get recent measurements
+            cursor.execute("""
+                SELECT 
+                    measurement_type,
+                    n_kg_ha,
+                    p_kg_ha,
+                    k_kg_ha,
+                    below_threshold,
+                    notes,
+                    recorded_at
+                FROM nutrient_measurements
+                WHERE cycle_id = %s
+                ORDER BY recorded_at DESC
+                LIMIT 10
+            """, (cycle_id,))
+            measurements = [dict(row) for row in cursor.fetchall()]
+            
+            # Get rainfall events
+            cursor.execute("""
+                SELECT 
+                    rainfall_mm,
+                    n_loss_kg_ha,
+                    p_loss_kg_ha,
+                    k_loss_kg_ha,
+                    event_date
+                FROM rainfall_events
+                WHERE cycle_id = %s
+                ORDER BY event_date DESC
+            """, (cycle_id,))
+            rainfall_events = [dict(row) for row in cursor.fetchall()]
+            
             # Check current status
             status = check_nutrient_status(
                 cycle['current_n_kg_ha'],
@@ -512,20 +543,36 @@ class RINDMCycleManager:
                 'status': cycle['status'],
                 'crop': cycle['crop_name'],
                 'cycle_number': cycle['cycle_number'],
+                'soil_type': cycle['soil_type'],
+                'ph': float(cycle['soil_ph']) if cycle['soil_ph'] else 7.0,
+                'start_date': str(cycle['start_date']),
+                'expected_end_date': str(cycle['expected_end_date']),
                 'progress': {
-                    'days_elapsed': cycle['days_elapsed'],
-                    'days_remaining': cycle['days_remaining'],
+                    'days_elapsed': int(cycle['days_elapsed']) if cycle['days_elapsed'] else 0,
+                    'days_remaining': int(cycle['days_remaining']) if cycle['days_remaining'] else 0,
                     'total_days': cycle['cycle_days'],
-                    'percent_complete': round((cycle['days_elapsed'] / cycle['cycle_days']) * 100, 1)
+                    'percent_complete': round((int(cycle['days_elapsed']) / cycle['cycle_days']) * 100, 1) if cycle['days_elapsed'] else 0
                 },
                 'current_nutrients': {
-                    'N': cycle['current_n_kg_ha'],
-                    'P': cycle['current_p_kg_ha'],
-                    'K': cycle['current_k_kg_ha']
+                    'N': float(cycle['current_n_kg_ha']),
+                    'P': float(cycle['current_p_kg_ha']),
+                    'K': float(cycle['current_k_kg_ha'])
+                },
+                'initial_nutrients': {
+                    'N': float(cycle['initial_n_kg_ha']),
+                    'P': float(cycle['initial_p_kg_ha']),
+                    'K': float(cycle['initial_k_kg_ha'])
+                },
+                'crop_requirements': {
+                    'N': float(cycle['total_crop_uptake_n']),
+                    'P': float(cycle['total_crop_uptake_p']),
+                    'K': float(cycle['total_crop_uptake_k'])
                 },
                 'nutrient_status': status,
-                'rainfall_events': cycle['rainfall_event_count'],
-                'last_weather_check': str(cycle['last_weather_check'])
+                'rainfall_events': rainfall_events,
+                'rainfall_event_count': len(rainfall_events),
+                'measurements': measurements,
+                'last_weather_check': str(cycle['last_weather_check']) if cycle['last_weather_check'] else None
             }
 
 

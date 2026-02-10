@@ -32,7 +32,7 @@ from src.services.rindm_cycle_manager import RINDMCycleManager
 from src.services.weather_monitor import get_monitor_instance, start_monitor
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # Initialize services
 db = DatabaseManager()
