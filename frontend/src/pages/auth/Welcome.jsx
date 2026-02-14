@@ -77,7 +77,7 @@ export const Welcome = () => {
 
         {/* Footer */}
         <div className="text-center text-gray-600 text-sm">
-          <p>© 2024 CropSense. All rights reserved.</p>
+          {/* <p>© 2024 CropSense. All rights reserved.</p> */}
         </div>
       </div>
     </div>

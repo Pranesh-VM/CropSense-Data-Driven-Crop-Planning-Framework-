@@ -50,15 +50,15 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (email, password) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authService.login(username, password);
+      const response = await authService.login(email, password);
       
       if (response.token) {
-        // Use user from response or create from username
-        const userData = response.user || { username, farmer_id: response.farmer_id };
+        // Use farmer data from response (contains username from signup)
+        const userData = response.farmer || { email, farmer_id: response.farmer_id };
         
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.token);
         localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));

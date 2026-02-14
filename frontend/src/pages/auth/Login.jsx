@@ -18,7 +18,7 @@ export const Login = () => {
 
   const onSubmit = async (data) => {
     setApiError(null);
-    const result = await login(data.username, data.password);
+    const result = await login(data.email, data.password);
 
     if (result.success) {
       toast.success('Login successful!');
@@ -48,24 +48,24 @@ export const Login = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Username Field */}
+          {/* Email Field */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Username
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email
             </label>
             <input
-              id="username"
-              type="text"
-              placeholder="Enter your username"
+              id="email"
+              type="email"
+              placeholder="Enter your email"
               className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                errors.username ? 'border-red-500' : 'border-gray-300'
+                errors.email ? 'border-red-500' : 'border-gray-300'
               }`}
-              {...register('username', {
-                required: 'Username is required',
-                minLength: { value: 3, message: 'Username must be at least 3 characters' },
+              {...register('email', {
+                required: 'Email is required',
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Please enter a valid email' },
               })}
             />
-            {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
           </div>
 
           {/* Password Field */}

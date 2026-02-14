@@ -100,18 +100,18 @@ def login():
     
     POST /api/auth/login
     Body: {
-        "username": "farmer123",  # or email
+        "email": "farmer@example.com",
         "password": "password123"
     }
     """
     try:
         data = request.get_json()
         
-        if 'username' not in data or 'password' not in data:
-            return jsonify({'error': 'Username and password required'}), 400
+        if 'email' not in data or 'password' not in data:
+            return jsonify({'error': 'Email and password required'}), 400
         
         result = auth_service.login_farmer(
-            username_or_email=data['username'],
+            username_or_email=data['email'],
             password=data['password']
         )
         
