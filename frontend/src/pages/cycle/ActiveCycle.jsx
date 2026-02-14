@@ -5,10 +5,12 @@ import { useActiveCycle, useCheckWeather, useCompleteCycle } from '../../hooks/u
 
 export const ActiveCycle = () => {
   const navigate = useNavigate();
-  const { data: activeCycleData, isLoading } = useActiveCycle();
+  const { data: activeCycleData, isLoading, refetch } = useActiveCycle();
   const checkWeather = useCheckWeather();
   const completeCycle = useCompleteCycle();
   const [showCompleteModal, setShowCompleteModal] = React.useState(false);
+  const [showWeatherModal, setShowWeatherModal] = React.useState(false);
+  const [weatherResult, setWeatherResult] = React.useState(null);
 
   // Extract cycle data from nested structure
   const activeCycle = activeCycleData?.cycle || null;
@@ -22,7 +24,13 @@ export const ActiveCycle = () => {
 
     try {
       const result = await checkWeather.mutateAsync(activeCycle.cycle_id);
-      toast.success('Weather data updated successfully!');
+      setWeatherResult(result);
+      setShowWeatherModal(true);
+      // Refetch cycle data if rainfall was detected (nutrients may have changed)
+      if (result.rainfall_detected) {
+        refetch();
+      }
+      toast.success('Weather data fetched successfully!');
     } catch (error) {
       toast.error('Failed to fetch weather data');
     }
@@ -120,11 +128,23 @@ export const ActiveCycle = () => {
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
+                <div>
+                  <p className="text-gray-600 text-sm mb-1">Start Date</p>
+                  <p className="text-gray-900 font-semibold">
+                    {activeCycle.start_date ? new Date(activeCycle.start_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm mb-1">Expected End</p>
+                  <p className="text-gray-900 font-semibold">
+                    {activeCycle.expected_end_date ? new Date(activeCycle.expected_end_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
                 <div>
                   <p className="text-gray-600 text-sm mb-1">Days Elapsed</p>
                   <p className="text-gray-900 font-semibold">
-                    {activeCycle.progress?.days_elapsed || 0} days
+                    {activeCycle.progress?.days_elapsed || 0} / {activeCycle.progress?.total_days || 0} days
                   </p>
                 </div>
                 <div>
@@ -132,6 +152,30 @@ export const ActiveCycle = () => {
                   <p className="text-gray-900 font-semibold">
                     {activeCycle.progress?.days_remaining || 0} days
                   </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Crop Requirements */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Crop Requirements</h2>
+              <p className="text-gray-600 text-sm mb-4">Nutrient uptake needed by <span className="font-semibold capitalize">{activeCycle.crop}</span> over the full cycle</p>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                  <p className="text-blue-600 text-sm font-medium">Nitrogen (N)</p>
+                  <p className="text-2xl font-bold text-blue-800">{activeCycle.crop_requirements?.N?.toFixed(1) || 0}</p>
+                  <p className="text-blue-600 text-xs">kg/ha</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <p className="text-green-600 text-sm font-medium">Phosphorus (P)</p>
+                  <p className="text-2xl font-bold text-green-800">{activeCycle.crop_requirements?.P?.toFixed(1) || 0}</p>
+                  <p className="text-green-600 text-xs">kg/ha</p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+                  <p className="text-orange-600 text-sm font-medium">Potassium (K)</p>
+                  <p className="text-2xl font-bold text-orange-800">{activeCycle.crop_requirements?.K?.toFixed(1) || 0}</p>
+                  <p className="text-orange-600 text-xs">kg/ha</p>
                 </div>
               </div>
             </div>
@@ -166,6 +210,49 @@ export const ActiveCycle = () => {
                   💡 <strong>Tip:</strong> Monitor nutrient levels weekly for optimal crop yield.
                   Consider applying supplements if levels are critically low.
                 </p>
+              </div>
+
+              {/* Initial vs Current Comparison */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Initial vs Current</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 text-gray-600 font-medium">Nutrient</th>
+                        <th className="text-right py-2 text-gray-600 font-medium">Initial</th>
+                        <th className="text-right py-2 text-gray-600 font-medium">Current</th>
+                        <th className="text-right py-2 text-gray-600 font-medium">Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-gray-100">
+                        <td className="py-2 font-medium text-gray-900">Nitrogen (N)</td>
+                        <td className="text-right py-2 text-gray-600">{activeCycle.initial_nutrients?.N?.toFixed(1) || 0}</td>
+                        <td className="text-right py-2 text-gray-900 font-semibold">{activeCycle.current_nutrients?.N?.toFixed(1) || 0}</td>
+                        <td className={`text-right py-2 font-semibold ${(activeCycle.current_nutrients?.N - activeCycle.initial_nutrients?.N) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {((activeCycle.current_nutrients?.N || 0) - (activeCycle.initial_nutrients?.N || 0)).toFixed(1)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-100">
+                        <td className="py-2 font-medium text-gray-900">Phosphorus (P)</td>
+                        <td className="text-right py-2 text-gray-600">{activeCycle.initial_nutrients?.P?.toFixed(1) || 0}</td>
+                        <td className="text-right py-2 text-gray-900 font-semibold">{activeCycle.current_nutrients?.P?.toFixed(1) || 0}</td>
+                        <td className={`text-right py-2 font-semibold ${(activeCycle.current_nutrients?.P - activeCycle.initial_nutrients?.P) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {((activeCycle.current_nutrients?.P || 0) - (activeCycle.initial_nutrients?.P || 0)).toFixed(1)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 font-medium text-gray-900">Potassium (K)</td>
+                        <td className="text-right py-2 text-gray-600">{activeCycle.initial_nutrients?.K?.toFixed(1) || 0}</td>
+                        <td className="text-right py-2 text-gray-900 font-semibold">{activeCycle.current_nutrients?.K?.toFixed(1) || 0}</td>
+                        <td className={`text-right py-2 font-semibold ${(activeCycle.current_nutrients?.K - activeCycle.initial_nutrients?.K) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {((activeCycle.current_nutrients?.K || 0) - (activeCycle.initial_nutrients?.K || 0)).toFixed(1)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -256,6 +343,26 @@ export const ActiveCycle = () => {
               </div>
             )}
 
+            {/* Soil Info */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">🌱 Soil Info</h3>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-gray-600 text-sm">Soil Type</p>
+                  <p className="text-lg font-semibold text-gray-900 capitalize">
+                    {activeCycle.soil_type || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600 text-sm">Soil pH</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {activeCycle.ph?.toFixed(1) || 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Location Info */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">📍 Location</h3>
@@ -304,6 +411,161 @@ export const ActiveCycle = () => {
                 {completeCycle.isPending ? 'Ending Cycle...' : 'Yes, End Cycle'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weather Result Modal */}
+      {showWeatherModal && weatherResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                {weatherResult.rainfall_detected ? '🌧️' : '☀️'} Weather Report
+              </h2>
+              <button
+                onClick={() => setShowWeatherModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Location Info */}
+            {weatherResult.location && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-1">Location</p>
+                <p className="text-lg font-semibold text-gray-900">
+                  {weatherResult.location.name}{weatherResult.location.country ? `, ${weatherResult.location.country}` : ''}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {weatherResult.location.latitude?.toFixed(4)}, {weatherResult.location.longitude?.toFixed(4)}
+                </p>
+              </div>
+            )}
+
+            {/* Weather Details */}
+            {weatherResult.weather && (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-blue-600 text-xs font-medium">Temperature</p>
+                  <p className="text-2xl font-bold text-blue-800">{weatherResult.weather.temperature?.toFixed(1)}°C</p>
+                  <p className="text-blue-600 text-xs">Feels like {weatherResult.weather.feels_like?.toFixed(1)}°C</p>
+                </div>
+                <div className="bg-cyan-50 rounded-lg p-3 text-center">
+                  <p className="text-cyan-600 text-xs font-medium">Humidity</p>
+                  <p className="text-2xl font-bold text-cyan-800">{weatherResult.weather.humidity}%</p>
+                </div>
+                <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                  <p className="text-indigo-600 text-xs font-medium">Pressure</p>
+                  <p className="text-2xl font-bold text-indigo-800">{weatherResult.weather.pressure}</p>
+                  <p className="text-indigo-600 text-xs">hPa</p>
+                </div>
+                <div className={`rounded-lg p-3 text-center ${weatherResult.weather.rainfall > 0 ? 'bg-blue-100' : 'bg-green-50'}`}>
+                  <p className={`text-xs font-medium ${weatherResult.weather.rainfall > 0 ? 'text-blue-600' : 'text-green-600'}`}>Rainfall</p>
+                  <p className={`text-2xl font-bold ${weatherResult.weather.rainfall > 0 ? 'text-blue-800' : 'text-green-800'}`}>{weatherResult.weather.rainfall || 0}</p>
+                  <p className={`text-xs ${weatherResult.weather.rainfall > 0 ? 'text-blue-600' : 'text-green-600'}`}>mm</p>
+                </div>
+              </div>
+            )}
+
+            {/* Weather Description */}
+            {weatherResult.weather?.description && (
+              <div className="text-center mb-4">
+                <span className="inline-block px-4 py-2 bg-gray-100 rounded-full text-gray-700 text-sm capitalize">
+                  {weatherResult.weather.description}
+                </span>
+              </div>
+            )}
+
+            {/* Rainfall Impact Section */}
+            {weatherResult.rainfall_detected ? (
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-lg font-semibold text-red-600 mb-3 flex items-center gap-2">
+                  ⚠️ Rainfall Impact on Nutrients
+                </h3>
+                
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-red-800 text-sm mb-2">
+                    <strong>{weatherResult.rainfall_mm} mm</strong> of rainfall detected
+                  </p>
+                  <p className="text-red-700 text-xs">{weatherResult.message}</p>
+                </div>
+
+                {/* Nutrient Loss */}
+                {weatherResult.nutrient_loss && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Nutrient Loss (kg/ha)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-red-100 rounded-lg p-2 text-center">
+                        <p className="text-red-600 text-xs">N Loss</p>
+                        <p className="text-lg font-bold text-red-800">-{weatherResult.nutrient_loss.N?.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-red-100 rounded-lg p-2 text-center">
+                        <p className="text-red-600 text-xs">P Loss</p>
+                        <p className="text-lg font-bold text-red-800">-{weatherResult.nutrient_loss.P?.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-red-100 rounded-lg p-2 text-center">
+                        <p className="text-red-600 text-xs">K Loss</p>
+                        <p className="text-lg font-bold text-red-800">-{weatherResult.nutrient_loss.K?.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Updated Nutrients */}
+                {weatherResult.updated_nutrients && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Updated Nutrient Levels (kg/ha)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-blue-50 rounded-lg p-2 text-center">
+                        <p className="text-blue-600 text-xs">Nitrogen</p>
+                        <p className="text-lg font-bold text-blue-800">{weatherResult.updated_nutrients.N?.toFixed(1)}</p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-2 text-center">
+                        <p className="text-green-600 text-xs">Phosphorus</p>
+                        <p className="text-lg font-bold text-green-800">{weatherResult.updated_nutrients.P?.toFixed(1)}</p>
+                      </div>
+                      <div className="bg-orange-50 rounded-lg p-2 text-center">
+                        <p className="text-orange-600 text-xs">Potassium</p>
+                        <p className="text-lg font-bold text-orange-800">{weatherResult.updated_nutrients.K?.toFixed(1)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Warning */}
+                {weatherResult.warning && (
+                  <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-yellow-800 text-sm font-medium">🔬 Soil Test Recommended</p>
+                    <p className="text-yellow-700 text-xs mt-1">Nutrient levels are below optimal. Consider conducting a soil test.</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <p className="text-green-800 font-medium">✓ No Rainfall Detected</p>
+                  <p className="text-green-600 text-sm mt-1">Your nutrient levels remain unchanged.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Timestamp */}
+            {weatherResult.weather?.timestamp && (
+              <p className="text-xs text-gray-400 text-center mt-4">
+                Data as of: {new Date(weatherResult.weather.timestamp).toLocaleString()}
+              </p>
+            )}
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowWeatherModal(false)}
+              className="w-full mt-6 bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-4 rounded-lg transition"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
