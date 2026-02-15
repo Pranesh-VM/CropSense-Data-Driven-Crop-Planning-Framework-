@@ -8,19 +8,59 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN));
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // Session validation loading state
   const [error, setError] = useState(null);
 
-  // Load user data on mount
+  // Validate session on mount - automatically restore previous login
   useEffect(() => {
-    const savedUser = localStorage.getItem(STORAGE_KEYS.USER_DATA);
-    if (savedUser && token) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+    const validateSession = async () => {
+      const savedToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      const savedUser = localStorage.getItem(STORAGE_KEYS.USER_DATA);
+      
+      if (!savedToken) {
+        setIsInitializing(false);
+        return;
       }
-    }
-  }, [token]);
+
+      // First, set the saved user data for immediate display
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+          setToken(savedToken);
+        } catch (e) {
+          // Invalid saved data
+        }
+      }
+
+      // Validate token with backend
+      try {
+        const response = await authService.getProfile();
+        if (response.success && response.profile) {
+          // Update user data with fresh data from server
+          const userData = {
+            farmer_id: response.profile.farmer_id,
+            username: response.profile.username,
+            email: response.profile.email,
+            phone: response.profile.phone,
+          };
+          localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(userData));
+          setUser(userData);
+          setToken(savedToken);
+        }
+      } catch (err) {
+        // Token is invalid or expired - clear session
+        console.log('Session validation failed, clearing stored session');
+        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+        setToken(null);
+        setUser(null);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    validateSession();
+  }, []);
 
   const signup = useCallback(async (username, email, password, phone) => {
     setIsLoading(true);
@@ -92,6 +132,7 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     isLoading,
+    isInitializing,
     error,
     signup,
     login,

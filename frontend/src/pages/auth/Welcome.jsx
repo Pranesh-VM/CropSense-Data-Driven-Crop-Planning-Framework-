@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 export const Welcome = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitializing } = useAuth();
   const navigate = useNavigate();
 
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
+  // Redirect to dashboard if already authenticated (after session validation)
+  useEffect(() => {
+    if (!isInitializing && isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, isInitializing, navigate]);
+
+  // Show loading while validating session
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking session...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

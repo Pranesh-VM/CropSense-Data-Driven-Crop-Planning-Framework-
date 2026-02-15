@@ -6,16 +6,29 @@ import { toast } from 'react-toastify';
 
 export const Signup = () => {
   const navigate = useNavigate();
-  const { signup, isLoading, isAuthenticated } = useAuth();
+  const { signup, isLoading, isAuthenticated, isInitializing } = useAuth();
   const { register, handleSubmit, watch, formState: { errors } } = useForm();
   const [apiError, setApiError] = useState(null);
   const password = watch('password');
 
+  // Redirect to dashboard if already authenticated (after session validation)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isInitializing && isAuthenticated) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isInitializing, navigate]);
+
+  // Show loading while validating session
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   const onSubmit = async (data) => {
     setApiError(null);

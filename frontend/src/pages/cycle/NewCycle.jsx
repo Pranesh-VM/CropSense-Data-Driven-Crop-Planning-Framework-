@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useGetRecommendations, useNutrientStatus } from '../../hooks/useNutrients';
 import { useStartCycle } from '../../hooks/useCycle';
@@ -8,16 +8,32 @@ import { CROPS, SOIL_TYPES } from '../../utils/constants';
 
 export const NewCycle = () => {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+  const location = useLocation();
+  
+  // Check if coming from a completed cycle with pre-filled nutrients
+  const prefillNutrients = location.state?.prefillNutrients;
+  const fromCompletedCycle = location.state?.fromCompletedCycle;
+  
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
-      nitrogen: 50,
-      phosphorus: 20,
-      potassium: 50,
-      ph: 7.0,
+      nitrogen: prefillNutrients?.N || 50,
+      phosphorus: prefillNutrients?.P || 20,
+      potassium: prefillNutrients?.K || 50,
+      ph: prefillNutrients?.ph || 7.0,
       latitude: 28.6139,
       longitude: 77.2090,
     },
   });
+
+  // Update form values if pre-filled nutrients change
+  useEffect(() => {
+    if (prefillNutrients) {
+      if (prefillNutrients.N !== undefined) setValue('nitrogen', prefillNutrients.N);
+      if (prefillNutrients.P !== undefined) setValue('phosphorus', prefillNutrients.P);
+      if (prefillNutrients.K !== undefined) setValue('potassium', prefillNutrients.K);
+      if (prefillNutrients.ph !== undefined) setValue('ph', prefillNutrients.ph);
+    }
+  }, [prefillNutrients, setValue]);
 
   const [step, setStep] = useState(1); // 1: Input, 2: Recommendations, 3: Confirm
   const [selectedCrop, setSelectedCrop] = useState(null);
@@ -93,6 +109,22 @@ export const NewCycle = () => {
             Enter soil nutrient levels to get crop recommendations
           </p>
         </div>
+
+        {/* Pre-filled nutrients notification */}
+        {fromCompletedCycle && prefillNutrients && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">📊</span>
+              <div>
+                <p className="font-semibold text-blue-800">Continuing from Previous Cycle</p>
+                <p className="text-blue-700 text-sm mt-1">
+                  Nutrient values have been pre-filled with your soil's current levels after the last harvest. 
+                  Adjust the values if you've applied fertilizers or the soil has been tested recently.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress Indicator */}
         <div className="mb-8 flex items-center justify-between">

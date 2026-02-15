@@ -477,22 +477,131 @@ def get_active_cycle(current_user):
 def complete_cycle(current_user, cycle_id):
     """
     Manually complete a cycle (or it completes automatically).
+    Returns final nutrients, next crop recommendations, and fertilizer suggestions.
     
     POST /api/rindm/complete-cycle/{cycle_id}
     Headers: Authorization: Bearer <token>
     """
     try:
-        # Verify ownership
+        # Verify ownership and get cycle + field info
         with db.get_connection() as (conn, cursor):
             cursor.execute("""
-                SELECT farmer_id FROM crop_cycles WHERE cycle_id = %s
+                SELECT cc.farmer_id, cc.initial_ph, cc.soil_type,
+                       f.latitude, f.longitude
+                FROM crop_cycles cc
+                LEFT JOIN fields f ON cc.field_id = f.field_id
+                WHERE cc.cycle_id = %s
             """, (cycle_id,))
             
-            cycle = cursor.fetchone()
-            if not cycle or cycle['farmer_id'] != current_user['farmer_id']:
+            cycle_info = cursor.fetchone()
+            if not cycle_info or cycle_info['farmer_id'] != current_user['farmer_id']:
                 return jsonify({'error': 'Unauthorized'}), 403
+            
+            cycle_info = dict(cycle_info)
         
+        # Complete the cycle
         result = cycle_manager.complete_cycle(cycle_id)
+        
+        if not result.get('success'):
+            return jsonify(result), 400
+        
+        final_nutrients = result.get('final_nutrients', {})
+        final_n = final_nutrients.get('N', 0)
+        final_p = final_nutrients.get('P', 0)
+        final_k = final_nutrients.get('K', 0)
+        ph = cycle_info.get('initial_ph', 6.5)
+        
+        # Critical thresholds for fertilizer recommendations
+        CRITICAL_THRESHOLDS = {'N': 30, 'P': 10, 'K': 40}
+        
+        # Check which nutrients are critically low
+        low_nutrients = []
+        fertilizer_recommendations = []
+        
+        if final_n < CRITICAL_THRESHOLDS['N']:
+            low_nutrients.append('Nitrogen (N)')
+            deficit = CRITICAL_THRESHOLDS['N'] - final_n + 20  # Add buffer
+            fertilizer_recommendations.append({
+                'nutrient': 'Nitrogen',
+                'current_level': round(final_n, 1),
+                'recommended_addition': round(deficit, 1),
+                'fertilizer_options': ['Urea (46-0-0)', 'Ammonium Nitrate (34-0-0)', 'Ammonium Sulfate (21-0-0)']
+            })
+        
+        if final_p < CRITICAL_THRESHOLDS['P']:
+            low_nutrients.append('Phosphorus (P)')
+            deficit = CRITICAL_THRESHOLDS['P'] - final_p + 10
+            fertilizer_recommendations.append({
+                'nutrient': 'Phosphorus',
+                'current_level': round(final_p, 1),
+                'recommended_addition': round(deficit, 1),
+                'fertilizer_options': ['Single Super Phosphate (0-16-0)', 'Triple Super Phosphate (0-46-0)', 'DAP (18-46-0)']
+            })
+        
+        if final_k < CRITICAL_THRESHOLDS['K']:
+            low_nutrients.append('Potassium (K)')
+            deficit = CRITICAL_THRESHOLDS['K'] - final_k + 20
+            fertilizer_recommendations.append({
+                'nutrient': 'Potassium',
+                'current_level': round(final_k, 1),
+                'recommended_addition': round(deficit, 1),
+                'fertilizer_options': ['Muriate of Potash (0-0-60)', 'Sulfate of Potash (0-0-50)', 'Potassium Nitrate (13-0-44)']
+            })
+        
+        nutrients_too_low = len(low_nutrients) > 0
+        
+        # Get next crop recommendations based on final nutrients
+        next_crop_recommendations = []
+        
+        try:
+            # Fetch current weather for the location
+            latitude = cycle_info.get('latitude', 28.6139)
+            longitude = cycle_info.get('longitude', 77.2090)
+            
+            weather_fetcher = WeatherAPIFetcher()
+            weather = weather_fetcher.get_current_weather(latitude, longitude)
+            
+            if weather:
+                temperature = weather.get('temperature', 25.0)
+                humidity = weather.get('humidity', 60.0)
+                rainfall = weather.get('rainfall', 100.0)
+            else:
+                temperature = 25.0
+                humidity = 60.0
+                rainfall = 100.0
+            
+            # Get recommendations using final nutrient levels
+            recommendation_result = recommender.recommend(
+                N=final_n,
+                P=final_p,
+                K=final_k,
+                temperature=temperature,
+                humidity=humidity,
+                ph=ph,
+                rainfall=rainfall
+            )
+            
+            next_crop_recommendations = recommendation_result.get('top_3_crops', [])
+            
+        except Exception as e:
+            print(f"Warning: Could not fetch next crop recommendations: {e}")
+            next_crop_recommendations = []
+        
+        # Add next crop data to result
+        result['next_cycle_data'] = {
+            'final_nutrients': {
+                'N': round(final_n, 1),
+                'P': round(final_p, 1),
+                'K': round(final_k, 1),
+                'ph': round(ph, 1)
+            },
+            'nutrients_too_low': nutrients_too_low,
+            'low_nutrients': low_nutrients,
+            'fertilizer_recommendations': fertilizer_recommendations,
+            'next_crop_recommendations': next_crop_recommendations,
+            'message': 'Nutrients are too low for optimal crop growth. Consider applying fertilizers before starting a new cycle.' if nutrients_too_low else 'Your soil is ready for a new crop cycle!'
+        }
+        
         return jsonify(result), 200
         
     except Exception as e:

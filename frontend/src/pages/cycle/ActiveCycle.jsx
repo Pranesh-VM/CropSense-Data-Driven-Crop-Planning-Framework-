@@ -10,7 +10,9 @@ export const ActiveCycle = () => {
   const completeCycle = useCompleteCycle();
   const [showCompleteModal, setShowCompleteModal] = React.useState(false);
   const [showWeatherModal, setShowWeatherModal] = React.useState(false);
+  const [showCompletionResultModal, setShowCompletionResultModal] = React.useState(false);
   const [weatherResult, setWeatherResult] = React.useState(null);
+  const [completionResult, setCompletionResult] = React.useState(null);
 
   // Extract cycle data from nested structure
   const activeCycle = activeCycleData?.cycle || null;
@@ -46,9 +48,25 @@ export const ActiveCycle = () => {
       const result = await completeCycle.mutateAsync(activeCycle.cycle_id);
       toast.success('Cycle completed successfully!');
       setShowCompleteModal(false);
-      navigate('/cycle/history');
+      setCompletionResult(result);
+      setShowCompletionResultModal(true);
     } catch (error) {
       toast.error('Failed to complete cycle');
+    }
+  };
+
+  const handleStartNewCycle = () => {
+    // Navigate to new cycle page with final nutrients pre-filled
+    const nextCycleData = completionResult?.next_cycle_data;
+    if (nextCycleData?.final_nutrients) {
+      navigate('/cycle/new', { 
+        state: { 
+          prefillNutrients: nextCycleData.final_nutrients,
+          fromCompletedCycle: true
+        } 
+      });
+    } else {
+      navigate('/cycle/new');
     }
   };
 
@@ -566,6 +584,119 @@ export const ActiveCycle = () => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cycle Completion Result Modal */}
+      {showCompletionResultModal && completionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-3">🎉</div>
+              <h2 className="text-2xl font-bold text-gray-900">Cycle Completed!</h2>
+              <p className="text-gray-600 mt-2">Here's your harvest summary and next steps</p>
+            </div>
+
+            {/* Final Nutrients Summary */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Final Soil Nutrients</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                  <p className="text-blue-600 text-sm font-medium">Nitrogen (N)</p>
+                  <p className="text-2xl font-bold text-blue-800">
+                    {completionResult.next_cycle_data?.final_nutrients?.N || completionResult.final_nutrients?.N?.toFixed(1) || 0}
+                  </p>
+                  <p className="text-blue-600 text-xs">kg/ha</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <p className="text-green-600 text-sm font-medium">Phosphorus (P)</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {completionResult.next_cycle_data?.final_nutrients?.P || completionResult.final_nutrients?.P?.toFixed(1) || 0}
+                  </p>
+                  <p className="text-green-600 text-xs">kg/ha</p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                  <p className="text-orange-600 text-sm font-medium">Potassium (K)</p>
+                  <p className="text-2xl font-bold text-orange-800">
+                    {completionResult.next_cycle_data?.final_nutrients?.K || completionResult.final_nutrients?.K?.toFixed(1) || 0}
+                  </p>
+                  <p className="text-orange-600 text-xs">kg/ha</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fertilizer Recommendations (if nutrients too low) */}
+            {completionResult.next_cycle_data?.nutrients_too_low && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                  ⚠️ Fertilizer Recommendations
+                </h3>
+                <p className="text-yellow-700 text-sm mb-4">
+                  {completionResult.next_cycle_data.message}
+                </p>
+                
+                <div className="space-y-3">
+                  {completionResult.next_cycle_data.fertilizer_recommendations?.map((rec, idx) => (
+                    <div key={idx} className="bg-white border border-yellow-300 rounded-lg p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-semibold text-gray-900">{rec.nutrient}</span>
+                        <span className="text-sm text-red-600">
+                          Current: {rec.current_level} kg/ha
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">
+                        Add approximately <strong>{rec.recommended_addition} kg/ha</strong>
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {rec.fertilizer_options?.map((opt, i) => (
+                          <span key={i} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                            {opt}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Success message when nutrients are good */}
+            {!completionResult.next_cycle_data?.nutrients_too_low && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-center">
+                <p className="text-green-800 font-medium">✓ Your soil is ready for a new crop cycle!</p>
+                <p className="text-green-600 text-sm mt-1">Start a new cycle to get crop recommendations.</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              {completionResult.next_cycle_data?.nutrients_too_low ? (
+                <button
+                  onClick={handleStartNewCycle}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  🧪 Replenish Soil & Start Cycle
+                </button>
+              ) : (
+                <button
+                  onClick={handleStartNewCycle}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  🌾 Start New Cycle
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowCompletionResultModal(false);
+                  navigate('/cycle/history');
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-3 px-6 rounded-lg transition"
+              >
+                View History
+              </button>
+            </div>
           </div>
         </div>
       )}
