@@ -85,7 +85,9 @@ class WeatherAPIFetcher:
                     'feels_like': data['main']['feels_like'],
                     'pressure': data['main']['pressure'],
                     'timestamp': datetime.fromtimestamp(data['dt']).isoformat(),
-                    'description': data['weather'][0]['description']
+                    'description': data['weather'][0]['description'],
+                    'location_name': data.get('name', 'Unknown'),
+                    'country': data.get('sys', {}).get('country', '')
                 }
             else:
                 print(f"Weather API error - Status {response.status_code}: {response.text}")
@@ -125,7 +127,9 @@ class WeatherAPIFetcher:
             'feels_like': round(base_temp + random.uniform(-3, 3), 2),
             'pressure': random.randint(1000, 1020),
             'timestamp': datetime.now().isoformat(),
-            'description': 'scattered clouds'
+            'description': 'scattered clouds',
+            'location_name': 'Mock Location',
+            'country': 'IN'
         }
     
     def get_forecast_weather(self, latitude: float, longitude: float, days: int = 5) -> Optional[List[Dict]]:

@@ -231,7 +231,22 @@ class RINDMCycleManager:
             return {
                 'success': True,
                 'rainfall_detected': False,
-                'message': 'No rainfall detected'
+                'message': 'No rainfall detected',
+                'weather': {
+                    'temperature': weather_data.get('temperature'),
+                    'humidity': weather_data.get('humidity'),
+                    'rainfall': rainfall_mm,
+                    'feels_like': weather_data.get('feels_like'),
+                    'pressure': weather_data.get('pressure'),
+                    'description': weather_data.get('description'),
+                    'timestamp': weather_data.get('timestamp')
+                },
+                'location': {
+                    'name': weather_data.get('location_name', 'Unknown'),
+                    'country': weather_data.get('country', ''),
+                    'latitude': float(cycle['latitude']),
+                    'longitude': float(cycle['longitude'])
+                }
             }
         
         # Rainfall detected! Process it
@@ -241,7 +256,10 @@ class RINDMCycleManager:
             current_n=cycle['current_n_kg_ha'],
             current_p=cycle['current_p_kg_ha'],
             current_k=cycle['current_k_kg_ha'],
-            soil_type=cycle['soil_type']
+            soil_type=cycle['soil_type'],
+            weather_data=weather_data,
+            latitude=float(cycle['latitude']),
+            longitude=float(cycle['longitude'])
         )
     
     def process_rainfall_event(
@@ -252,7 +270,10 @@ class RINDMCycleManager:
         current_p: float,
         current_k: float,
         soil_type: str,
-        duration_hours: float = 2.0
+        duration_hours: float = 2.0,
+        weather_data: Dict = None,
+        latitude: float = None,
+        longitude: float = None
     ) -> Dict:
         """
         Process a rainfall event and update nutrients.
@@ -263,6 +284,9 @@ class RINDMCycleManager:
             current_n, current_p, current_k: Current nutrient levels
             soil_type: Soil type
             duration_hours: Estimated duration (default 2 hours)
+            weather_data: Weather data from API
+            latitude: Field latitude
+            longitude: Field longitude
             
         Returns:
             Dictionary with updated nutrients
@@ -370,7 +394,7 @@ class RINDMCycleManager:
                     status['soil_test_message']
                 ))
         
-        return {
+        result = {
             'success': True,
             'rainfall_detected': True,
             'rainfall_mm': rainfall_mm,
@@ -389,6 +413,26 @@ class RINDMCycleManager:
             'warning': status['needs_soil_test'],
             'message': status['soil_test_message'] if status['needs_soil_test'] else 'Nutrients updated'
         }
+        
+        # Add weather and location info if available
+        if weather_data:
+            result['weather'] = {
+                'temperature': weather_data.get('temperature'),
+                'humidity': weather_data.get('humidity'),
+                'rainfall': rainfall_mm,
+                'feels_like': weather_data.get('feels_like'),
+                'pressure': weather_data.get('pressure'),
+                'description': weather_data.get('description'),
+                'timestamp': weather_data.get('timestamp')
+            }
+            result['location'] = {
+                'name': weather_data.get('location_name', 'Unknown'),
+                'country': weather_data.get('country', ''),
+                'latitude': latitude,
+                'longitude': longitude
+            }
+        
+        return result
     
     def complete_cycle(self, cycle_id: int) -> Dict:
         """
@@ -480,16 +524,19 @@ class RINDMCycleManager:
         }
     
     def get_cycle_status(self, cycle_id: int) -> Dict:
-        """Get current status of a cycle."""
+        """Get current status of a cycle with complete details."""
         with self.db.get_connection() as (conn, cursor):
             cursor.execute("""
                 SELECT 
                     cc.*,
                     cnr.cycle_days,
                     (CURRENT_DATE - cc.start_date) as days_elapsed,
-                    (cc.expected_end_date - CURRENT_DATE) as days_remaining
+                    (cc.expected_end_date - CURRENT_DATE) as days_remaining,
+                    f.latitude,
+                    f.longitude
                 FROM crop_cycles cc
                 JOIN crop_nutrient_requirements cnr ON cc.crop_name = cnr.crop_name
+                LEFT JOIN fields f ON cc.field_id = f.field_id
                 WHERE cc.cycle_id = %s
             """, (cycle_id,))
             
@@ -498,6 +545,37 @@ class RINDMCycleManager:
                 return {'success': False, 'error': 'Cycle not found'}
             
             cycle = dict(cycle)
+            
+            # Get recent measurements
+            cursor.execute("""
+                SELECT 
+                    measurement_type,
+                    n_kg_ha,
+                    p_kg_ha,
+                    k_kg_ha,
+                    below_threshold,
+                    notes,
+                    measurement_date AS recorded_at
+                FROM nutrient_measurements
+                WHERE cycle_id = %s
+                ORDER BY measurement_date DESC
+                LIMIT 10
+            """, (cycle_id,))
+            measurements = [dict(row) for row in cursor.fetchall()]
+            
+            # Get rainfall events
+            cursor.execute("""
+                SELECT 
+                    rainfall_mm,
+                    nutrient_loss_n AS n_loss_kg_ha,
+                    nutrient_loss_p AS p_loss_kg_ha,
+                    nutrient_loss_k AS k_loss_kg_ha,
+                    event_start AS event_date
+                FROM rainfall_events
+                WHERE cycle_id = %s
+                ORDER BY event_start DESC
+            """, (cycle_id,))
+            rainfall_events = [dict(row) for row in cursor.fetchall()]
             
             # Check current status
             status = check_nutrient_status(
@@ -512,20 +590,38 @@ class RINDMCycleManager:
                 'status': cycle['status'],
                 'crop': cycle['crop_name'],
                 'cycle_number': cycle['cycle_number'],
+                'soil_type': cycle['soil_type'],
+                'ph': float(cycle['soil_ph']) if cycle['soil_ph'] else 7.0,
+                'start_date': str(cycle['start_date']),
+                'expected_end_date': str(cycle['expected_end_date']),
                 'progress': {
-                    'days_elapsed': cycle['days_elapsed'],
-                    'days_remaining': cycle['days_remaining'],
+                    'days_elapsed': int(cycle['days_elapsed']) if cycle['days_elapsed'] else 0,
+                    'days_remaining': int(cycle['days_remaining']) if cycle['days_remaining'] else 0,
                     'total_days': cycle['cycle_days'],
-                    'percent_complete': round((cycle['days_elapsed'] / cycle['cycle_days']) * 100, 1)
+                    'percent_complete': round((int(cycle['days_elapsed']) / cycle['cycle_days']) * 100, 1) if cycle['days_elapsed'] else 0
                 },
                 'current_nutrients': {
-                    'N': cycle['current_n_kg_ha'],
-                    'P': cycle['current_p_kg_ha'],
-                    'K': cycle['current_k_kg_ha']
+                    'N': float(cycle['current_n_kg_ha']),
+                    'P': float(cycle['current_p_kg_ha']),
+                    'K': float(cycle['current_k_kg_ha'])
+                },
+                'initial_nutrients': {
+                    'N': float(cycle['initial_n_kg_ha']),
+                    'P': float(cycle['initial_p_kg_ha']),
+                    'K': float(cycle['initial_k_kg_ha'])
+                },
+                'crop_requirements': {
+                    'N': float(cycle['total_crop_uptake_n']),
+                    'P': float(cycle['total_crop_uptake_p']),
+                    'K': float(cycle['total_crop_uptake_k'])
                 },
                 'nutrient_status': status,
-                'rainfall_events': cycle['rainfall_event_count'],
-                'last_weather_check': str(cycle['last_weather_check'])
+                'rainfall_events': rainfall_events,
+                'rainfall_event_count': len(rainfall_events),
+                'measurements': measurements,
+                'last_weather_check': str(cycle['last_weather_check']) if cycle['last_weather_check'] else None,
+                'latitude': float(cycle['latitude']) if cycle.get('latitude') else None,
+                'longitude': float(cycle['longitude']) if cycle.get('longitude') else None
             }
 
 
