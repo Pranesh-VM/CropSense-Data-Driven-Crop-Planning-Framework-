@@ -1,0 +1,6 @@
+Scenario,Before_Crop,Before_Confidence,After_Crop,After_Confidence,N_Loss_%,Changed
+"High N, Low K (Sandy)",maize,0.31900692644546297,orange,0.37405577059148293,54.59,True
+Balanced (Loamy),jute,0.6095134983814683,pigeonpeas,0.2256750191600196,51.87,True
+"Low N, High P (Clay)",rice,0.29544677177852746,orange,0.3716908433935528,61.97,True
+High Nutrients (Sandy),coffee,0.5059263584143678,mango,0.28280347077541707,54.59,True
+Acidic Soil (Loamy),rice,0.9512073190010595,rice,0.3122470383890222,51.86,False
