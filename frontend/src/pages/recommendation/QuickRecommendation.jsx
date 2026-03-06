@@ -87,7 +87,7 @@ export const QuickRecommendation = () => {
                     {...register('N', {
                       required: true,
                       min: 0,
-                      max: 300,
+                      max: 1000,
                     })}
                   />
                 </div>
@@ -106,7 +106,7 @@ export const QuickRecommendation = () => {
                     {...register('P', {
                       required: true,
                       min: 0,
-                      max: 150,
+                      max: 200,
                     })}
                   />
                 </div>
@@ -125,7 +125,7 @@ export const QuickRecommendation = () => {
                     {...register('K', {
                       required: true,
                       min: 0,
-                      max: 300,
+                      max: 1000,
                     })}
                   />
                 </div>
