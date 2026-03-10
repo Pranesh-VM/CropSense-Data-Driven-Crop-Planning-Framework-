@@ -419,3 +419,209 @@ class ProphetNutrientForecaster:
             except FileNotFoundError:
                 print(f"⚠ Model file not found: {model_path}")
                 continue
+    
+    # ============================================================================
+    # DATABASE INTEGRATION (Phase 3)
+    # ============================================================================
+    
+    def train_from_db(
+        self,
+        farmer_id: int = None,
+        crop_name: str = None,
+        days_back: int = 365
+    ) -> Dict:
+        """
+        Convenience method: fetch data via TimeSeriesDataManager then train.
+        
+        Args:
+            farmer_id: Filter to one farmer (or None for all)
+            crop_name: Filter to one crop type (or None for all)
+            days_back: How many days of history to use
+        
+        Returns:
+            Training summary from self.train()
+        
+        Example:
+            forecaster = ProphetNutrientForecaster()
+            forecaster.train_from_db(crop_name='rice', days_back=730)
+            forecast = forecaster.forecast_next_days(days_ahead=30)
+        """
+        from src.models.time_series_data_manager import TimeSeriesDataManager
+        
+        mgr = TimeSeriesDataManager()
+        df = mgr.get_timeseries_for_training(
+            farmer_id=farmer_id,
+            crop_name=crop_name,
+            days_back=days_back,
+            use_synthetic_if_empty=True
+        )
+        
+        if df.empty:
+            raise ValueError("No training data available and synthetic generation failed.")
+        
+        print(f"✓ Data loaded: {len(df)} records")
+        return self.train(df)
+
+
+# ============================================================================
+# PROPHET MARKET FORECASTER (Phase 3)
+# ============================================================================
+
+class ProphetMarketForecaster:
+    """
+    Prophet model for market price forecasting.
+    
+    Purpose: Predict crop market prices for the next season
+    so Monte Carlo and Q-Learning can use realistic price estimates
+    instead of hardcoded DEFAULT_MARKET_PRICES.
+    
+    Usage:
+        forecaster = ProphetMarketForecaster()
+        forecaster.train_from_db('rice')
+        result = forecaster.forecast_price(days_ahead=90)
+        # result['mean_price'] → ₹22.5/kg (predicted)
+        # result['lower_bound'] → ₹19.0/kg
+        # result['upper_bound'] → ₹26.0/kg
+    """
+
+    def __init__(self):
+        """Initialize Prophet model for market prices."""
+        if not PROPHET_AVAILABLE:
+            raise RuntimeError("Prophet is required. Install: pip install prophet")
+        
+        self.model = None
+        self.is_trained = False
+        self.crop_name = None
+
+    def _create_model(self) -> Prophet:
+        """Create a new Prophet model with market price settings."""
+        return Prophet(
+            yearly_seasonality=True,
+            weekly_seasonality=False,
+            daily_seasonality=False,
+            interval_width=0.80,
+            changepoint_prior_scale=0.1  # More flexible for price volatility
+        )
+
+    def train_from_db(self, crop_name: str, days_back: int = 365):
+        """
+        Load market price history and train Prophet.
+        
+        Args:
+            crop_name: Crop to forecast prices for
+            days_back: How many days of history to use
+        """
+        from src.models.time_series_data_manager import TimeSeriesDataManager
+        
+        mgr = TimeSeriesDataManager()
+        df = mgr.get_market_price_history(crop_name, days_back=days_back)
+        
+        if df.empty:
+            raise ValueError(f"No price data available for {crop_name}")
+        
+        # Prophet needs 'ds' and 'y' columns
+        df_prophet = pd.DataFrame({
+            'ds': pd.to_datetime(df['price_date']),
+            'y': df['price_per_kg'].astype(float)
+        })
+        
+        # Create and fit model
+        self.model = self._create_model()
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.model.fit(df_prophet)
+        
+        self.is_trained = True
+        self.crop_name = crop_name
+        print(f"✓ Market forecaster trained for {crop_name} ({len(df)} price records)")
+
+    def train(self, df: pd.DataFrame, crop_name: str):
+        """
+        Train on provided DataFrame.
+        
+        Args:
+            df: DataFrame with 'price_date' and 'price_per_kg' columns
+            crop_name: Crop name for reference
+        """
+        df_prophet = pd.DataFrame({
+            'ds': pd.to_datetime(df['price_date']),
+            'y': df['price_per_kg'].astype(float)
+        })
+        
+        self.model = self._create_model()
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.model.fit(df_prophet)
+        
+        self.is_trained = True
+        self.crop_name = crop_name
+        print(f"✓ Market forecaster trained for {crop_name}")
+
+    def forecast_price(self, days_ahead: int = 90) -> Dict:
+        """
+        Forecast market price for next N days.
+        
+        Args:
+            days_ahead: Number of days to forecast
+        
+        Returns:
+            {
+                'crop': 'rice',
+                'days_ahead': 90,
+                'mean_price': 22.5,
+                'lower_bound': 19.0,
+                'upper_bound': 26.0,
+                'daily_forecast': [{'date': '2026-04-01', 'price': 21.0}, ...]
+            }
+        """
+        if not self.is_trained:
+            raise RuntimeError("Call train() or train_from_db() first.")
+        
+        future = self.model.make_future_dataframe(periods=days_ahead)
+        forecast = self.model.predict(future)
+        
+        # Take only the future rows
+        future_forecast = forecast.tail(days_ahead)
+        
+        return {
+            'crop': self.crop_name,
+            'days_ahead': days_ahead,
+            'mean_price': round(float(future_forecast['yhat'].mean()), 2),
+            'lower_bound': round(float(future_forecast['yhat_lower'].mean()), 2),
+            'upper_bound': round(float(future_forecast['yhat_upper'].mean()), 2),
+            'daily_forecast': [
+                {
+                    'date': row['ds'].strftime('%Y-%m-%d'),
+                    'price': round(float(max(1.0, row['yhat'])), 2)
+                }
+                for _, row in future_forecast.iterrows()
+            ]
+        }
+
+    def save_model(self, path: str):
+        """Save trained model to disk."""
+        if not self.is_trained:
+            raise ValueError("Model not trained. Cannot save.")
+        
+        Path(path).mkdir(parents=True, exist_ok=True)
+        model_path = f"{path}/prophet_market_{self.crop_name}.pkl"
+        
+        joblib.dump({
+            'model': self.model,
+            'crop_name': self.crop_name
+        }, model_path)
+        
+        print(f"✓ Saved market forecaster to {model_path}")
+
+    def load_model(self, path: str, crop_name: str):
+        """Load pre-trained model from disk."""
+        model_path = f"{path}/prophet_market_{crop_name}.pkl"
+        
+        data = joblib.load(model_path)
+        self.model = data['model']
+        self.crop_name = data['crop_name']
+        self.is_trained = True
+        
+        print(f"✓ Loaded market forecaster from {model_path}")

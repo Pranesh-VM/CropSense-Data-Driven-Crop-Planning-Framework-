@@ -32,6 +32,14 @@ CROP_NUTRIENT_UPTAKE = {
         'average_yield_tonnes_ha': 6.0,
         'source': 'FAO Maize Production Guide'
     },
+    'wheat': {
+        'N_uptake_kg_ha': 100,
+        'P_uptake_kg_ha': 35,
+        'K_uptake_kg_ha': 90,
+        'cycle_days': 120,
+        'average_yield_tonnes_ha': 4.5,
+        'source': 'ICAR Wheat Research'
+    },
     'chickpea': {
         'N_uptake_kg_ha': 80,   # Legume - fixes N from atmosphere
         'P_uptake_kg_ha': 30,

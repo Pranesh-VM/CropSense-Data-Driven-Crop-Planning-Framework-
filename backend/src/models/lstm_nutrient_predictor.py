@@ -446,3 +446,50 @@ class LSTMNutrientPredictor:
             print(f"✓ Model loaded from {path}")
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Model files not found in {path}: {e}")
+    
+    # ============================================================================
+    # DATABASE INTEGRATION (Phase 3)
+    # ============================================================================
+    
+    def train_from_db(
+        self,
+        farmer_id: int = None,
+        crop_name: str = None,
+        days_back: int = 730,    # 2 years default
+        epochs: int = 50
+    ) -> Dict:
+        """
+        Convenience method: fetch data via TimeSeriesDataManager then train.
+        
+        This is the method called by the API endpoint.
+        Falls back to synthetic data if no DB records exist.
+        
+        Args:
+            farmer_id:  Filter to one farmer (or None for all farmers)
+            crop_name:  Filter to one crop type (or None for all crops)
+            days_back:  How many days of history to use
+            epochs:     Training epochs
+        
+        Returns:
+            Training history dict from self.train()
+        
+        Example:
+            predictor = LSTMNutrientPredictor(lookback_days=30, forecast_days=14)
+            result = predictor.train_from_db(farmer_id=5, crop_name='rice', epochs=100)
+            predictor.save_model('models/lstm_rice')
+        """
+        from src.models.time_series_data_manager import TimeSeriesDataManager
+        
+        mgr = TimeSeriesDataManager()
+        df = mgr.get_timeseries_for_training(
+            farmer_id=farmer_id,
+            crop_name=crop_name,
+            days_back=days_back,
+            use_synthetic_if_empty=True
+        )
+        
+        if df.empty:
+            raise ValueError("No training data available and synthetic generation failed.")
+        
+        print(f"✓ Data loaded: {len(df)} records")
+        return self.train(df, epochs=epochs)

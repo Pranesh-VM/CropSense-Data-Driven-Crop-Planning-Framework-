@@ -1,0 +1,583 @@
+{
+  "info": {
+    "_postman_id": "7594e844-c2e7-46c3-82cd-1ae3bf2e2892",
+    "name": "CropSense API - Complete Collection",
+    "description": "Complete API endpoints for CropSense RINDM system including Phase 3 Planning (Monte Carlo, Q-Learning)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "48223541"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "2. Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('auth_token', jsonData.token);",
+                  "    pm.environment.set('farmer_id', jsonData.farmer.farmer_id);",
+                  "    console.log('Token saved to environment');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ramesh_farmer\",\n  \"email\": \"ramesh@example.com\",\n  \"password\": \"test123456\",\n  \"name\": \"Ramesh Kumar\",\n  \"phone\": \"+919876543210\",\n  \"location\": \"Chennai, Tamil Nadu\",\n  \"latitude\": 13.0827,\n  \"longitude\": 80.2707\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "signup"
+              ]
+            },
+            "description": "Create new farmer account"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('auth_token', jsonData.token);",
+                  "    pm.environment.set('farmer_id', jsonData.farmer.farmer_id);",
+                  "    console.log('Token saved to environment');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ramesh_farmer\",\n  \"password\": \"test123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login existing farmer"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "profile"
+              ]
+            },
+            "description": "Get farmer profile (test auth)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "RINDM Cycle",
+      "item": [
+        {
+          "name": "5. Get Recommendations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('recommendation_id', jsonData.recommendation_id);",
+                  "    pm.environment.set('recommended_crop', jsonData.recommendations.predicted_crop);",
+                  "    console.log('Recommendation ID saved:', jsonData.recommendation_id);",
+                  "    console.log('Recommended crop:', jsonData.recommendations.predicted_crop);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"ph\": 6.5,\n  \"latitude\": 13.0827,\n  \"longitude\": 80.2707\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/rindm/get-recommendations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "get-recommendations"
+              ]
+            },
+            "description": "Get top 3 crop recommendations"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Start Cycle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set('cycle_id', jsonData.cycle_id);",
+                  "    console.log('Cycle started! ID:', jsonData.cycle_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recommendation_id\": {{recommendation_id}},\n  \"selected_crop\": \"{{recommended_crop}}\",\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"ph\": 6.5,\n  \"soil_type\": \"loamy\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/rindm/start-cycle",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "start-cycle"
+              ]
+            },
+            "description": "Start RINDM cycle with selected crop"
+          },
+          "response": []
+        },
+        {
+          "name": "7. Get Active Cycle",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/rindm/active-cycle",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "active-cycle"
+              ]
+            },
+            "description": "Get farmer's active cycle"
+          },
+          "response": []
+        },
+        {
+          "name": "8. Check Cycle Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/rindm/cycle-status/{{cycle_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "cycle-status",
+                "{{cycle_id}}"
+              ]
+            },
+            "description": "Get detailed status of specific cycle"
+          },
+          "response": []
+        },
+        {
+          "name": "9. Manual Weather Check",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/rindm/check-weather/{{cycle_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "check-weather",
+                "{{cycle_id}}"
+              ]
+            },
+            "description": "Manually trigger weather check (simulates automatic monitoring)"
+          },
+          "response": []
+        },
+        {
+          "name": "10. Get Cycle History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/rindm/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "history"
+              ]
+            },
+            "description": "Get all past cycles"
+          },
+          "response": []
+        },
+        {
+          "name": "11. Complete Cycle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/rindm/complete-cycle/{{cycle_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rindm",
+                "complete-cycle",
+                "{{cycle_id}}"
+              ]
+            },
+            "description": "Manually complete a cycle"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Planning (Phase 3)",
+      "description": "Phase 3 Planning endpoints for crop comparison, risk analysis, and optimal rotation planning",
+      "item": [
+        {
+          "name": "13. Compare Crop Trajectories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"soil_type\": \"loamy\",\n  \"season_index\": 0,\n  \"expected_rainfall_mm\": 600,\n  \"candidate_crops\": [\"rice\", \"wheat\", \"lentil\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/planning/compare-crops",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "planning",
+                "compare-crops"
+              ]
+            },
+            "description": "Compare look-ahead soil trajectories for candidate crops. Shows which crop leaves the soil in better condition for the next season.\n\nReturns:\n- immediate_reward: Profit from this crop cycle\n- future_value_estimate: Expected value of future seasons\n- total_estimated_value: immediate + future\n- next_state: Soil NPK after crop cycle"
+          },
+          "response": []
+        },
+        {
+          "name": "14. Profit Risk Report (Monte Carlo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"soil_type\": \"loamy\",\n  \"expected_rainfall_mm\": 600,\n  \"candidate_crops\": [\"rice\", \"wheat\", \"lentil\"],\n  \"rainfall_uncertainty_pct\": 0.20,\n  \"price_uncertainty_pct\": 0.15\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/planning/profit-risk-report",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "planning",
+                "profit-risk-report"
+              ]
+            },
+            "description": "Monte Carlo profit distribution for candidate crops. Simulates 2000 future scenarios with varying rainfall and market price.\n\nReturns for each crop:\n- mean_profit: Average expected profit\n- min_profit / max_profit: Range\n- std_dev: Standard deviation\n- prob_of_loss: Probability of negative profit\n- percentile_5 / percentile_95: Confidence interval\n- risk_adjusted_score: Mean - StdDev (conservative estimate)"
+          },
+          "response": []
+        },
+        {
+          "name": "15. Seasonal Rotation Plan (Q-Learning)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"soil_type\": \"loamy\",\n  \"expected_rainfall_mm\": 600,\n  \"season_index\": 0,\n  \"num_seasons\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/planning/seasonal-rotation-plan",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "planning",
+                "seasonal-rotation-plan"
+              ]
+            },
+            "description": "Get optimal multi-season crop rotation from trained Q-Learning agent.\n\nReturns:\n- sequence: Optimal crop order (e.g., [\"rice\", \"lentil\", \"wheat\", \"mungbean\", \"rice\"])\n- total_reward: Sum of all season rewards\n- avg_reward_per_season: Mean reward\n- season_details: Per-season breakdown with soil states\n- final_soil_state: NPK after all seasons"
+          },
+          "response": []
+        },
+        {
+          "name": "16. Train Q-Agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"soil_type\": \"loamy\",\n  \"expected_rainfall_mm\": 600,\n  \"num_episodes\": 1000,\n  \"crop_pool\": [\"rice\", \"wheat\", \"lentil\", \"maize\", \"mungbean\", \"chickpea\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/planning/train-q-agent",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "planning",
+                "train-q-agent"
+              ]
+            },
+            "description": "Trigger Q-Agent training. Takes ~30-60 seconds for 1000 episodes.\n\nCall this:\n- Once during initial setup\n- After every 3-5 completed crop cycles to incorporate real data\n\nParameters:\n- num_episodes: Training iterations (default: 1000)\n- crop_pool: Subset of crops to consider (default: all 22)\n\nReturns training stats and saves model to disk."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Single Prediction (Existing)",
+      "item": [
+        {
+          "name": "12. Single Prediction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"N\": 90,\n  \"P\": 42,\n  \"K\": 43,\n  \"ph\": 6.5,\n  \"latitude\": 13.0827,\n  \"longitude\": 80.2707\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/predict",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "predict"
+              ]
+            },
+            "description": "One-time crop prediction (no auth)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Utilities",
+      "item": [
+        {
+          "name": "Get Crop Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/crop-info/rice",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "crop-info",
+                "rice"
+              ]
+            },
+            "description": "Get information about a specific crop"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Verify server is running. Shows status of all services including Phase 3 modules (state_transition, monte_carlo, q_learning)."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}

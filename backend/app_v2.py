@@ -31,6 +31,13 @@ from src.auth.auth import FarmerAuthService, require_auth
 from src.services.rindm_cycle_manager import RINDMCycleManager
 from src.services.weather_monitor import get_monitor_instance, start_monitor
 
+# ============================================================================
+# PHASE 3 IMPORTS
+# ============================================================================
+from src.models.state_transition_simulator import StateTransitionSimulator, EnvironmentState
+from src.models.monte_carlo_simulator import MonteCarloSimulator
+from src.models.q_learning_agent import QLearningAgent
+
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
@@ -40,6 +47,23 @@ auth_service = FarmerAuthService(db)
 recommender = FarmerCropRecommender()
 weather_fetcher = WeatherAPIFetcher()
 cycle_manager = RINDMCycleManager(db)
+
+# ============================================================================
+# PHASE 3 SERVICES
+# ============================================================================
+transition_sim  = StateTransitionSimulator()
+monte_carlo     = MonteCarloSimulator(n_simulations=2000)  # 2000 = fast ~1s response
+
+Q_AGENT_PATH    = Path(__file__).parent / 'models' / 'q_agent.pkl'
+q_agent         = QLearningAgent()
+if Q_AGENT_PATH.exists():
+    try:
+        q_agent.load(str(Q_AGENT_PATH))
+        print("✓ Q-Learning agent loaded")
+    except Exception as e:
+        print(f"⚠ Could not load Q-Learning agent: {e}")
+else:
+    print("⚠ Q-Learning agent not trained yet. POST /api/planning/train-q-agent to train.")
 
 # Start weather monitoring in background
 MONITOR_ENABLED = os.getenv('ENABLE_WEATHER_MONITOR', 'true').lower() == 'true'
@@ -587,6 +611,34 @@ def complete_cycle(current_user, cycle_id):
             print(f"Warning: Could not fetch next crop recommendations: {e}")
             next_crop_recommendations = []
         
+        # ================================================================
+        # PHASE 3: Write completed cycle to performance history table
+        # ================================================================
+        try:
+            with db.get_connection() as (conn, cursor):
+                cursor.execute("""
+                    INSERT INTO cycle_performance_history (
+                        farmer_id, field_id, cycle_id, crop_name,
+                        initial_n, initial_p, initial_k,
+                        final_n,   final_p,   final_k,
+                        total_rainfall_mm
+                    )
+                    SELECT
+                        cc.farmer_id, cc.field_id, cc.cycle_id, cc.crop_name,
+                        cc.initial_n_kg_ha, cc.initial_p_kg_ha, cc.initial_k_kg_ha,
+                        cc.final_n_kg_ha,   cc.final_p_kg_ha,   cc.final_k_kg_ha,
+                        COALESCE(SUM(re.rainfall_mm), 0) as total_rainfall_mm
+                    FROM crop_cycles cc
+                    LEFT JOIN rainfall_events re ON cc.cycle_id = re.cycle_id
+                    WHERE cc.cycle_id = %s
+                    GROUP BY cc.cycle_id, cc.farmer_id, cc.field_id, cc.crop_name,
+                             cc.initial_n_kg_ha, cc.initial_p_kg_ha, cc.initial_k_kg_ha,
+                             cc.final_n_kg_ha,   cc.final_p_kg_ha,   cc.final_k_kg_ha
+                    ON CONFLICT DO NOTHING
+                """, (cycle_id,))
+        except Exception as e:
+            print(f"Warning: Could not log cycle to performance history: {e}")
+
         # Add next crop data to result
         result['next_cycle_data'] = {
             'final_nutrients': {
@@ -686,7 +738,10 @@ def health():
             'authentication': 'enabled',
             'single_prediction': 'enabled',
             'rindm_cycles': 'enabled',
-            'weather_monitor': 'enabled' if MONITOR_ENABLED else 'disabled'
+            'weather_monitor': 'enabled' if MONITOR_ENABLED else 'disabled',
+            'state_transition': 'enabled',
+            'monte_carlo': 'enabled',
+            'q_learning': 'trained' if Q_AGENT_PATH.exists() else 'not_trained'
         }
     }), 200
 
@@ -699,6 +754,192 @@ def crop_info(crop_name):
         if not info:
             return jsonify({'error': f'Crop {crop_name} not found'}), 404
         return jsonify(info), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# PHASE 3: PLANNING ROUTES
+# ============================================================================
+
+@app.route('/api/planning/compare-crops', methods=['POST'])
+@require_auth
+def compare_crop_trajectories(current_user):
+    """
+    Compare look-ahead soil trajectories for candidate crops.
+    Shows which crop leaves the soil in better condition next season.
+    
+    POST /api/planning/compare-crops
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "N": 90, "P": 42, "K": 43,
+        "soil_type": "loamy",
+        "season_index": 0,
+        "expected_rainfall_mm": 600,
+        "candidate_crops": ["rice", "wheat", "lentil"]
+    }
+    """
+    try:
+        data = request.get_json()
+        required = ['N', 'P', 'K', 'soil_type']
+        if not all(f in data for f in required):
+            return jsonify({'error': f'Missing required fields: {required}'}), 400
+
+        state = EnvironmentState(
+            n=float(data['N']),
+            p=float(data['P']),
+            k=float(data['K']),
+            season_index=int(data.get('season_index', 0)),
+            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500)),
+            soil_type=data['soil_type']
+        )
+
+        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
+        options = transition_sim.compare_crop_options(state, crops)
+
+        return jsonify({'success': True, 'options': options}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/planning/profit-risk-report', methods=['POST'])
+@require_auth
+def profit_risk_report(current_user):
+    """
+    Monte Carlo profit distribution for candidate crops.
+    Simulates 2000 future scenarios with varying rainfall and market price.
+    
+    POST /api/planning/profit-risk-report
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "N": 90, "P": 42, "K": 43,
+        "soil_type": "loamy",
+        "expected_rainfall_mm": 600,
+        "candidate_crops": ["rice", "wheat", "lentil"],
+        "rainfall_uncertainty_pct": 0.20,
+        "price_uncertainty_pct": 0.15
+    }
+    """
+    try:
+        data = request.get_json()
+        required = ['N', 'P', 'K', 'soil_type']
+        if not all(f in data for f in required):
+            return jsonify({'error': f'Missing required fields: {required}'}), 400
+
+        state = EnvironmentState(
+            n=float(data['N']),
+            p=float(data['P']),
+            k=float(data['K']),
+            soil_type=data['soil_type'],
+            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500))
+        )
+
+        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
+        r_unc = float(data.get('rainfall_uncertainty_pct', 0.20))
+        p_unc = float(data.get('price_uncertainty_pct', 0.15))
+
+        profiles = monte_carlo.compare_crops_risk_profile(
+            state, crops,
+            rainfall_uncertainty_pct=r_unc,
+            price_uncertainty_pct=p_unc
+        )
+
+        return jsonify({'success': True, 'risk_profiles': profiles}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/planning/seasonal-rotation-plan', methods=['POST'])
+@require_auth
+def seasonal_rotation_plan(current_user):
+    """
+    Get optimal multi-season crop rotation from trained Q-Learning agent.
+    
+    POST /api/planning/seasonal-rotation-plan
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "N": 90, "P": 42, "K": 43,
+        "soil_type": "loamy",
+        "expected_rainfall_mm": 600,
+        "num_seasons": 5
+    }
+    """
+    try:
+        data = request.get_json()
+        required = ['N', 'P', 'K', 'soil_type']
+        if not all(f in data for f in required):
+            return jsonify({'error': f'Missing required fields: {required}'}), 400
+
+        state = EnvironmentState(
+            n=float(data['N']),
+            p=float(data['P']),
+            k=float(data['K']),
+            soil_type=data['soil_type'],
+            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500)),
+            season_index=int(data.get('season_index', 0))
+        )
+
+        num_seasons = int(data.get('num_seasons', 5))
+        plan = q_agent.get_optimal_sequence(state, num_seasons)
+
+        return jsonify({'success': True, 'plan': plan}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/planning/train-q-agent', methods=['POST'])
+@require_auth
+def train_q_agent_endpoint(current_user):
+    """
+    Trigger Q-Agent training. Takes ~30-60 seconds.
+    Call this once during setup, then again after each growing season.
+    
+    POST /api/planning/train-q-agent
+    Headers: Authorization: Bearer <token>
+    Body: {
+        "N": 90, "P": 42, "K": 43,
+        "soil_type": "loamy",
+        "expected_rainfall_mm": 600,
+        "num_episodes": 1000,
+        "crop_pool": ["rice", "wheat", "lentil", "maize", "mungbean", "chickpea"]
+    }
+    """
+    try:
+        data = request.get_json() or {}
+
+        state = EnvironmentState(
+            n=float(data.get('N', 90)),
+            p=float(data.get('P', 42)),
+            k=float(data.get('K', 43)),
+            soil_type=data.get('soil_type', 'loamy'),
+            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500)),
+            season_index=int(data.get('season_index', 0))
+        )
+
+        episodes = int(data.get('num_episodes', 1000))
+        crop_pool = data.get('crop_pool', None)  # None = all crops
+
+        # Re-initialise with custom crop pool if provided
+        global q_agent
+        q_agent = QLearningAgent(crop_pool=crop_pool)
+        stats = q_agent.train(state, num_episodes=episodes, verbose=False)
+        q_agent.save(str(Q_AGENT_PATH))
+
+        return jsonify({
+            'success': True,
+            'message': f'Q-Agent trained for {episodes} episodes',
+            'model_saved_to': str(Q_AGENT_PATH),
+            'training_stats': {
+                'episodes': stats.get('episodes_trained'),
+                'final_epsilon': round(stats.get('final_epsilon', 0), 4),
+                'avg_reward_last_100': round(stats.get('avg_reward_last_100', 0), 2),
+                'q_table_nonzero': stats.get('q_table_nonzero')
+            }
+        }), 200
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
