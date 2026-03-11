@@ -435,13 +435,21 @@ class LSTMNutrientPredictor:
         Args:
             path: Directory containing model files
         """
-        from tensorflow.keras.models import load_model
+        from tensorflow.keras.models import load_model as keras_load_model
+        from tensorflow.keras.optimizers import Adam
         
         model_path = f"{path}/lstm_nutrient_model.h5"
         scaler_path = f"{path}/lstm_scaler.pkl"
         
         try:
-            self.model = load_model(model_path)
+            # Load without compiling to avoid Keras deserialization issues
+            self.model = keras_load_model(model_path, compile=False)
+            # Recompile with fresh optimizer and metrics
+            self.model.compile(
+                optimizer=Adam(learning_rate=0.001),
+                loss='mse',
+                metrics=['mae', 'mape']
+            )
             self.scaler = joblib.load(scaler_path)
             print(f"✓ Model loaded from {path}")
         except FileNotFoundError as e:

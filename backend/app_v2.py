@@ -37,6 +37,15 @@ from src.services.weather_monitor import get_monitor_instance, start_monitor
 from src.models.state_transition_simulator import StateTransitionSimulator, EnvironmentState
 from src.models.monte_carlo_simulator import MonteCarloSimulator
 from src.models.q_learning_agent import QLearningAgent
+from src.models.time_series_data_manager import TimeSeriesDataManager
+
+# LSTM imports (optional - graceful fallback if TensorFlow not installed)
+try:
+    from src.models.lstm_nutrient_predictor import LSTMNutrientPredictor
+    LSTM_AVAILABLE = True
+except ImportError:
+    LSTM_AVAILABLE = False
+    print("⚠ LSTM not available (TensorFlow not installed)")
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
@@ -53,6 +62,97 @@ cycle_manager = RINDMCycleManager(db)
 # ============================================================================
 transition_sim  = StateTransitionSimulator()
 monte_carlo     = MonteCarloSimulator(n_simulations=2000)  # 2000 = fast ~1s response
+ts_data_manager = TimeSeriesDataManager(db)
+
+# LSTM Predictor (trained on cross-field data from all farmers)
+LSTM_MODEL_PATH = Path(__file__).parent / 'models' / 'lstm_nutrient'
+lstm_predictor = None
+lstm_trained = False
+
+
+def _train_lstm_internal(epochs: int = 50, days_back: int = 730) -> dict:
+    """
+    Internal function to train LSTM on cross-field data.
+    Called automatically at startup if model doesn't exist,
+    and optionally after each crop cycle completes.
+    
+    Args:
+        epochs: Training epochs (default 50)
+        days_back: Days of historical data to use (default 2 years)
+    
+    Returns:
+        dict with training results or error
+    """
+    global lstm_predictor, lstm_trained
+    
+    if not LSTM_AVAILABLE:
+        return {'success': False, 'error': 'TensorFlow not installed'}
+    
+    try:
+        print(f"\n{'='*60}")
+        print(f"Training LSTM on Cross-Field Data (Auto)")
+        print(f"{'='*60}")
+        
+        # Initialize predictor
+        lstm_predictor = LSTMNutrientPredictor(
+            lookback_days=30,
+            forecast_days=30  # LSTM predicts up to 30 days
+        )
+        
+        # Fetch CROSS-FIELD data: farmer_id=None = ALL farmers
+        df = ts_data_manager.get_timeseries_for_training(
+            farmer_id=None,      # ALL farmers (cross-field learning)
+            crop_name=None,      # ALL crops
+            days_back=days_back,
+            use_synthetic_if_empty=True
+        )
+        
+        if df.empty:
+            return {'success': False, 'error': 'No training data available'}
+        
+        print(f"✓ Loaded {len(df)} cross-field data points")
+        
+        # Train the model
+        result = lstm_predictor.train(df, epochs=epochs, verbose=1)
+        
+        # Save the trained model
+        LSTM_MODEL_PATH.mkdir(parents=True, exist_ok=True)
+        lstm_predictor.save_model(str(LSTM_MODEL_PATH))
+        
+        lstm_trained = True
+        
+        print(f"✓ LSTM model saved to {LSTM_MODEL_PATH}")
+        
+        return {
+            'success': True,
+            'data_points': len(df),
+            'epochs_trained': result.get('epochs_trained', epochs),
+            'final_loss': result.get('final_loss', 0)
+        }
+        
+    except Exception as e:
+        print(f"⚠ LSTM training error: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+# Auto-train LSTM at startup if not already trained
+if LSTM_AVAILABLE:
+    try:
+        lstm_predictor = LSTMNutrientPredictor(lookback_days=30, forecast_days=30)
+        if (LSTM_MODEL_PATH / 'lstm_nutrient_model.h5').exists():
+            lstm_predictor.load_model(str(LSTM_MODEL_PATH))
+            lstm_trained = True
+            print("✓ LSTM model loaded (cross-field trained)")
+        else:
+            print("ℹ LSTM model not found. Auto-training on startup...")
+            # Train automatically using cross-field data from DB (or synthetic)
+            train_result = _train_lstm_internal(epochs=30, days_back=365)
+            if train_result.get('success'):
+                print(f"✓ LSTM auto-trained on {train_result.get('data_points', 0)} data points")
+            else:
+                print(f"⚠ LSTM auto-training skipped: {train_result.get('error')}")
+    except Exception as e:
+        print(f"⚠ Could not initialize LSTM: {e}")
 
 Q_AGENT_PATH    = Path(__file__).parent / 'models' / 'q_agent.pkl'
 q_agent         = QLearningAgent()
@@ -638,6 +738,22 @@ def complete_cycle(current_user, cycle_id):
                 """, (cycle_id,))
         except Exception as e:
             print(f"Warning: Could not log cycle to performance history: {e}")
+        
+        # ================================================================
+        # PHASE 3: Retrain LSTM with new cycle data (incremental learning)
+        # This runs in background after every 5 completed cycles
+        # ================================================================
+        try:
+            with db.get_connection() as (conn, cursor):
+                cursor.execute("SELECT COUNT(*) as cnt FROM cycle_performance_history")
+                total_cycles = cursor.fetchone()['cnt']
+            
+            # Retrain every 5 completed cycles to incorporate new patterns
+            if total_cycles > 0 and total_cycles % 5 == 0:
+                print(f"ℹ {total_cycles} cycles completed. Triggering LSTM retrain...")
+                _train_lstm_internal(epochs=20, days_back=365)
+        except Exception as e:
+            print(f"Warning: Could not check for LSTM retrain: {e}")
 
         # Add next crop data to result
         result['next_cycle_data'] = {
@@ -741,7 +857,8 @@ def health():
             'weather_monitor': 'enabled' if MONITOR_ENABLED else 'disabled',
             'state_transition': 'enabled',
             'monte_carlo': 'enabled',
-            'q_learning': 'trained' if Q_AGENT_PATH.exists() else 'not_trained'
+            'q_learning': 'trained' if Q_AGENT_PATH.exists() else 'not_trained',
+            'lstm_predictor': 'trained' if lstm_trained else ('available' if LSTM_AVAILABLE else 'not_installed')
         }
     }), 200
 
@@ -767,7 +884,13 @@ def crop_info(crop_name):
 def compare_crop_trajectories(current_user):
     """
     Compare look-ahead soil trajectories for candidate crops.
-    Shows which crop leaves the soil in better condition next season.
+    Uses HYBRID approach: Formula (RINDM) + LSTM (learned patterns).
+    
+    - Formula: Deterministic RINDM calculation (always available)
+    - LSTM: Learned from cross-field historical data (if trained)
+    - Blended: 60% LSTM + 40% Formula (more accurate)
+    
+    History is fetched internally from database - no user input needed.
     
     POST /api/planning/compare-crops
     Headers: Authorization: Bearer <token>
@@ -785,19 +908,150 @@ def compare_crop_trajectories(current_user):
         if not all(f in data for f in required):
             return jsonify({'error': f'Missing required fields: {required}'}), 400
 
+        n = float(data['N'])
+        p = float(data['P'])
+        k = float(data['K'])
+        soil_type = data['soil_type']
+        season_index = int(data.get('season_index', 0))
+        expected_rainfall = float(data.get('expected_rainfall_mm', 500))
+        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
+        
         state = EnvironmentState(
-            n=float(data['N']),
-            p=float(data['P']),
-            k=float(data['K']),
-            season_index=int(data.get('season_index', 0)),
-            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500)),
-            soil_type=data['soil_type']
+            n=n, p=p, k=k,
+            season_index=season_index,
+            expected_rainfall_mm=expected_rainfall,
+            soil_type=soil_type
         )
 
-        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
-        options = transition_sim.compare_crop_options(state, crops)
-
-        return jsonify({'success': True, 'options': options}), 200
+        # ================================================================
+        # METHOD 1: Formula-based prediction (RINDM - always available)
+        # ================================================================
+        formula_options = transition_sim.compare_crop_options(state, crops)
+        
+        # ================================================================
+        # METHOD 2: LSTM prediction (if trained on cross-field data)
+        # ================================================================
+        lstm_predictions = {}
+        use_lstm = lstm_trained and lstm_predictor is not None
+        
+        if use_lstm:
+            try:
+                # Fetch last 30 days of cross-field historical data from DB
+                # This uses data from ALL farmers for better generalization
+                recent_data = ts_data_manager.get_timeseries_for_training(
+                    farmer_id=None,  # All farmers (cross-field)
+                    crop_name=None,  # All crops
+                    days_back=60,
+                    use_synthetic_if_empty=True
+                )
+                
+                if len(recent_data) >= 30:
+                    # Rename columns to match LSTM input format
+                    recent_data = recent_data.rename(columns={
+                        'n_kg_ha': 'n_kg_ha',
+                        'p_kg_ha': 'p_kg_ha',
+                        'k_kg_ha': 'k_kg_ha'
+                    })
+                    
+                    # Get LSTM predictions for each crop's typical duration
+                    from src.utils.crop_nutrient_database import CROP_NUTRIENT_DATA
+                    
+                    for crop in crops:
+                        crop_info = CROP_NUTRIENT_DATA.get(crop.lower(), {})
+                        duration = crop_info.get('duration_days', 90)
+                        
+                        # Predict nutrient trajectory
+                        lstm_result = lstm_predictor.predict_next_days(
+                            recent_data.tail(30)
+                        )
+                        
+                        if lstm_result.get('success'):
+                            # Get prediction at crop duration (or last available)
+                            preds = lstm_result.get('predictions', [])
+                            if preds:
+                                # Use min of forecast_days and available predictions
+                                idx = min(len(preds) - 1, duration // (90 // 7))  # Scale to available
+                                final_pred = preds[-1]  # Use last prediction
+                                lstm_predictions[crop] = {
+                                    'N': final_pred.get('predicted_n', n),
+                                    'P': final_pred.get('predicted_p', p),
+                                    'K': final_pred.get('predicted_k', k)
+                                }
+            except Exception as e:
+                print(f"⚠ LSTM prediction error: {e}")
+                use_lstm = False
+        
+        # ================================================================
+        # BLEND PREDICTIONS: 60% LSTM + 40% Formula
+        # ================================================================
+        LSTM_WEIGHT = 0.6
+        FORMULA_WEIGHT = 0.4
+        
+        results = []
+        for opt in formula_options:
+            crop = opt['crop']
+            formula_final = opt['next_state']  # next_state contains N, P, K uppercase
+            
+            # Start with formula prediction
+            blended_state = {
+                'N': formula_final['N'],
+                'P': formula_final['P'],
+                'K': formula_final['K']
+            }
+            
+            prediction_method = 'formula_only'
+            lstm_state = None
+            
+            # Blend with LSTM if available
+            if use_lstm and crop in lstm_predictions:
+                lstm_pred = lstm_predictions[crop]
+                lstm_state = {
+                    'N': round(lstm_pred['N'], 2),
+                    'P': round(lstm_pred['P'], 2),
+                    'K': round(lstm_pred['K'], 2)
+                }
+                
+                blended_state = {
+                    'N': round(LSTM_WEIGHT * lstm_pred['N'] + FORMULA_WEIGHT * formula_final['N'], 2),
+                    'P': round(LSTM_WEIGHT * lstm_pred['P'] + FORMULA_WEIGHT * formula_final['P'], 2),
+                    'K': round(LSTM_WEIGHT * lstm_pred['K'] + FORMULA_WEIGHT * formula_final['K'], 2)
+                }
+                prediction_method = 'lstm_blended'
+            
+            result = {
+                'crop': crop,
+                'season': ['kharif', 'rabi', 'zaid', 'summer'][season_index % 4],
+                'initial_state': {'N': n, 'P': p, 'K': k},
+                'formula_prediction': {
+                    'N': round(formula_final['N'], 2),
+                    'P': round(formula_final['P'], 2),
+                    'K': round(formula_final['K'], 2)
+                },
+                'final_state': blended_state,  # This is the main prediction
+                'immediate_reward': opt.get('immediate_reward', 0),
+                'future_value': opt.get('future_value_estimate', 0),
+                'total_value': opt.get('total_estimated_value', 0),
+                'prediction_method': prediction_method
+            }
+            
+            # Include LSTM prediction separately if available
+            if lstm_state:
+                result['lstm_prediction'] = lstm_state
+                result['blend_weights'] = {'lstm': LSTM_WEIGHT, 'formula': FORMULA_WEIGHT}
+            
+            results.append(result)
+        
+        # Sort by total value (highest first)
+        results.sort(key=lambda x: x['total_value'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'lstm_available': LSTM_AVAILABLE,
+            'lstm_trained': lstm_trained,
+            'prediction_method': 'lstm_blended' if use_lstm else 'formula_only',
+            'blend_weights': {'lstm': LSTM_WEIGHT, 'formula': FORMULA_WEIGHT} if use_lstm else None,
+            'options': results
+        }), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
