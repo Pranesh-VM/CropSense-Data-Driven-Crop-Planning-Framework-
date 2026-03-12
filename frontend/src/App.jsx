@@ -19,6 +19,7 @@ import { QuickRecommendation } from './pages/recommendation/QuickRecommendation'
 import { NewCycle } from './pages/cycle/NewCycle';
 import { ActiveCycle } from './pages/cycle/ActiveCycle';
 import { CycleHistory } from './pages/cycle/CycleHistory';
+import { Planning } from './pages/cycle/Planning';
 import { Profile } from './pages/profile/Profile';
 
 // Create a client for React Query
@@ -58,6 +59,7 @@ function App() {
                           <Route path="/cycle/new" element={<NewCycle />} />
                           <Route path="/cycle/active" element={<ActiveCycle />} />
                           <Route path="/cycle/history" element={<CycleHistory />} />
+                          <Route path="/planning" element={<Planning />} />
                           <Route path="/profile" element={<Profile />} />
                           <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Routes>

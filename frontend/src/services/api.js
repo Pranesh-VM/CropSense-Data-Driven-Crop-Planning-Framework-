@@ -131,6 +131,59 @@ export const recommendationService = {
   },
 };
 
+// ============= PLANNING ENDPOINTS (Phase 3) =============
+
+export const planningService = {
+  // Compare crops using hybrid LSTM + Formula prediction
+  compareCrops: async (N, P, K, soilType, seasonIndex = 0, expectedRainfallMm = 600, candidateCrops = ['rice', 'wheat', 'maize']) => {
+    const response = await api.post('/api/planning/compare-crops', {
+      N,
+      P,
+      K,
+      soil_type: soilType,
+      season_index: seasonIndex,
+      expected_rainfall_mm: expectedRainfallMm,
+      candidate_crops: candidateCrops,
+    });
+    return response.data;
+  },
+
+  // Monte Carlo profit risk analysis
+  profitRiskReport: async (N, P, K, soilType, expectedRainfallMm = 600, candidateCrops = ['rice', 'wheat', 'maize'], rainfallUncertainty = 0.20, priceUncertainty = 0.15) => {
+    const response = await api.post('/api/planning/profit-risk-report', {
+      N,
+      P,
+      K,
+      soil_type: soilType,
+      expected_rainfall_mm: expectedRainfallMm,
+      candidate_crops: candidateCrops,
+      rainfall_uncertainty_pct: rainfallUncertainty,
+      price_uncertainty_pct: priceUncertainty,
+    });
+    return response.data;
+  },
+
+  // Q-Learning seasonal rotation plan
+  seasonalRotationPlan: async (N, P, K, soilType, expectedRainfallMm = 600, seasonIndex = 0, numSeasons = 5) => {
+    const response = await api.post('/api/planning/seasonal-rotation-plan', {
+      N,
+      P,
+      K,
+      soil_type: soilType,
+      expected_rainfall_mm: expectedRainfallMm,
+      season_index: seasonIndex,
+      num_seasons: numSeasons,
+    });
+    return response.data;
+  },
+
+  // Get farmer's financial history
+  getFinancialHistory: async () => {
+    const response = await api.get('/api/planning/financial-history');
+    return response.data;
+  },
+};
+
 // ============= ERROR HANDLING UTILITY =============
 
 export const handleApiError = (error) => {

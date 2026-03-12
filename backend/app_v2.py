@@ -1198,6 +1198,154 @@ def train_q_agent_endpoint(current_user):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/planning/financial-history', methods=['GET'])
+@require_auth
+def get_financial_history(current_user):
+    """
+    Get farmer's financial history across all completed cycles.
+    Includes seed costs, fertilizer costs, labour charges, revenue, and profit.
+    
+    GET /api/planning/financial-history
+    Headers: Authorization: Bearer <token>
+    """
+    try:
+        records = []
+        summary = {
+            'total_profit': 0,
+            'total_investment': 0,
+            'net_return': 0,
+            'total_cycles': 0
+        }
+        
+        with db.get_connection() as (conn, cursor):
+            # Try to get from cycle_performance_history first
+            cursor.execute("""
+                SELECT 
+                    cph.cycle_id,
+                    cph.crop_name,
+                    cc.start_date,
+                    cc.actual_end_date as end_date,
+                    COALESCE(cph.seed_cost_per_ha, 0) as seed_cost,
+                    COALESCE(cph.fertilizer_cost_per_ha, 0) as fertilizer_cost,
+                    COALESCE(cph.labour_cost_per_ha, 0) as labour_cost,
+                    (COALESCE(cph.seed_cost_per_ha, 0) + 
+                     COALESCE(cph.fertilizer_cost_per_ha, 0) + 
+                     COALESCE(cph.labour_cost_per_ha, 0)) as total_cost,
+                    COALESCE(cph.actual_yield_tonnes_ha, 0) * COALESCE(cph.actual_market_price, 0) as revenue,
+                    COALESCE(cph.profit_per_ha, 0) as profit,
+                    cph.actual_yield_tonnes_ha as yield_per_ha,
+                    cph.actual_market_price as market_price
+                FROM cycle_performance_history cph
+                LEFT JOIN crop_cycles cc ON cph.cycle_id = cc.cycle_id
+                WHERE cph.farmer_id = %s
+                ORDER BY cc.start_date DESC
+            """, (current_user['farmer_id'],))
+            
+            rows = cursor.fetchall()
+            
+            if rows:
+                for row in rows:
+                    records.append({
+                        'cycle_id': row['cycle_id'],
+                        'crop_name': row['crop_name'],
+                        'start_date': str(row['start_date']) if row['start_date'] else None,
+                        'end_date': str(row['end_date']) if row['end_date'] else None,
+                        'seed_cost': float(row['seed_cost'] or 0),
+                        'fertilizer_cost': float(row['fertilizer_cost'] or 0),
+                        'labour_cost': float(row['labour_cost'] or 0),
+                        'total_cost': float(row['total_cost'] or 0),
+                        'revenue': float(row['revenue'] or 0),
+                        'profit': float(row['profit'] or 0),
+                        'yield_per_ha': float(row['yield_per_ha'] or 0),
+                        'market_price': float(row['market_price'] or 0)
+                    })
+                    summary['total_profit'] += float(row['profit'] or 0)
+                    summary['total_investment'] += float(row['total_cost'] or 0)
+            else:
+                # Fallback: Generate estimated financials from crop_cycles
+                cursor.execute("""
+                    SELECT 
+                        cc.cycle_id,
+                        cc.crop_name,
+                        cc.start_date,
+                        cc.actual_end_date as end_date,
+                        cc.actual_yield_tonnes_ha,
+                        cnr.average_yield_tonnes_ha as expected_yield
+                    FROM crop_cycles cc
+                    LEFT JOIN crop_nutrient_requirements cnr ON cc.crop_name = cnr.crop_name
+                    WHERE cc.farmer_id = %s AND cc.status = 'completed'
+                    ORDER BY cc.start_date DESC
+                """, (current_user['farmer_id'],))
+                
+                rows = cursor.fetchall()
+                
+                # Estimated costs per crop (in INR per hectare)
+                ESTIMATED_COSTS = {
+                    'rice': {'seed': 2000, 'fertilizer': 6000, 'labour': 15000},
+                    'wheat': {'seed': 2500, 'fertilizer': 5500, 'labour': 12000},
+                    'maize': {'seed': 3000, 'fertilizer': 6500, 'labour': 14000},
+                    'cotton': {'seed': 4000, 'fertilizer': 7000, 'labour': 18000},
+                    'sugarcane': {'seed': 8000, 'fertilizer': 10000, 'labour': 25000},
+                    'soybean': {'seed': 3500, 'fertilizer': 4000, 'labour': 10000},
+                    'groundnut': {'seed': 5000, 'fertilizer': 4500, 'labour': 12000},
+                    'chickpea': {'seed': 3000, 'fertilizer': 3500, 'labour': 8000},
+                    'lentil': {'seed': 2500, 'fertilizer': 3000, 'labour': 7500},
+                    'mungbean': {'seed': 2000, 'fertilizer': 2500, 'labour': 6000},
+                }
+                
+                # Market prices per kg
+                from src.models.state_transition_simulator import DEFAULT_MARKET_PRICES
+                
+                for row in rows:
+                    crop = row['crop_name'].lower()
+                    costs = ESTIMATED_COSTS.get(crop, {'seed': 3000, 'fertilizer': 5000, 'labour': 12000})
+                    
+                    seed_cost = costs['seed']
+                    fertilizer_cost = costs['fertilizer']
+                    labour_cost = costs['labour']
+                    total_cost = seed_cost + fertilizer_cost + labour_cost
+                    
+                    # Calculate revenue
+                    yield_ha = float(row['actual_yield_tonnes_ha'] or row['expected_yield'] or 2.5)
+                    price_per_kg = DEFAULT_MARKET_PRICES.get(crop, 25.0)
+                    revenue = yield_ha * 1000 * price_per_kg  # tonnes to kg, then multiply by price
+                    profit = revenue - total_cost
+                    
+                    records.append({
+                        'cycle_id': row['cycle_id'],
+                        'crop_name': row['crop_name'],
+                        'start_date': str(row['start_date']) if row['start_date'] else None,
+                        'end_date': str(row['end_date']) if row['end_date'] else None,
+                        'seed_cost': seed_cost,
+                        'fertilizer_cost': fertilizer_cost,
+                        'labour_cost': labour_cost,
+                        'total_cost': total_cost,
+                        'revenue': round(revenue, 2),
+                        'profit': round(profit, 2),
+                        'yield_per_ha': yield_ha,
+                        'market_price': price_per_kg
+                    })
+                    summary['total_profit'] += profit
+                    summary['total_investment'] += total_cost
+        
+        summary['net_return'] = summary['total_profit'] - summary['total_investment']
+        summary['total_cycles'] = len(records)
+        
+        return jsonify({
+            'success': True,
+            'records': records,
+            'summary': {
+                'total_profit': round(summary['total_profit'], 2),
+                'total_investment': round(summary['total_investment'], 2),
+                'net_return': round(summary['net_return'], 2),
+                'total_cycles': summary['total_cycles']
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('FLASK_PORT', 5000))
     debug = os.environ.get('FLASK_ENV', 'development') == 'development'
