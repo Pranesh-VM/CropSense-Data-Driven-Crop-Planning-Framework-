@@ -32,18 +32,23 @@ def main():
     print("CROP RECOMMENDATION SYSTEM - COMPLETE EVALUATION")
     print("="*70)
     print("\nThis will run all evaluation scripts and generate:")
-    print("  - 25 evaluation charts")
+    print("  - 42 evaluation charts (25 Phase 1-2 + 17 Phase 3)")
     print("  - Statistical analysis")
     print("  - CSV summaries")
     print()
     
     scripts = [
+        # Phase 1-2: Ensemble & RINDM
         ('02_ensemble_metrics.py', 'Ensemble Model Metrics (Charts 1-7)'),
         ('03_xgboost_vs_ensemble.py', 'XGBoost vs Ensemble Proof (Charts 8-14)'),
         ('04_rindm_validation.py', 'RINDM Validation (Charts 15-17)'),
         ('05_rindm_soil_analysis.py', 'RINDM Soil Analysis (Charts 18-19, 23)'),
         ('06_rindm_cumulative.py', 'RINDM Cumulative Analysis (Charts 20-22)'),
         ('07_integration_test.py', 'End-to-End Integration (Charts 24-25)'),
+        # Phase 3: LSTM, Monte Carlo, Q-Learning
+        ('08_lstm_evaluation.py', 'LSTM Nutrient Predictor (Charts 26-30)'),
+        ('09_monte_carlo_evaluation.py', 'Monte Carlo Simulator (Charts 31-36)'),
+        ('10_qlearning_evaluation.py', 'Q-Learning Agent (Charts 37-42)'),
     ]
     
     results = []
