@@ -69,10 +69,10 @@ export const Sidebar = () => {
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', Icon: DashboardIcon },
-    { path: '/quick-recommendation', label: 'Quick Recommend', Icon: QuickRecommendIcon },
-    { path: '/cycle/new', label: 'New Cycle', Icon: NewCycleIcon },
-    { path: '/cycle/active', label: 'Active Cycle', Icon: ActiveCycleIcon },
-    { path: '/cycle/history', label: 'History', Icon: HistoryIcon },
+    { path: '/quick-recommendation', label: 'AI Recommendations', Icon: QuickRecommendIcon },
+    { path: '/cycle/new', label: 'New Season', Icon: NewCycleIcon },
+    { path: '/cycle/active', label: 'Active Season', Icon: ActiveCycleIcon },
+    { path: '/cycle/history', label: 'Season History', Icon: HistoryIcon },
     { path: '/planning', label: 'Planning', Icon: PlanningIcon },
     { path: '/profile', label: 'Profile', Icon: ProfileIcon },
   ];

@@ -32,9 +32,9 @@ export const ActiveCycle = () => {
       if (result.rainfall_detected) {
         refetch();
       }
-      toast.success('Weather data fetched successfully!');
+      toast.success('Weather data updated');
     } catch (error) {
-      toast.error('Failed to fetch weather data');
+      toast.error('Couldn\'t fetch weather data. Check your connection and try again.');
     }
   };
 
@@ -46,12 +46,12 @@ export const ActiveCycle = () => {
 
     try {
       const result = await completeCycle.mutateAsync(activeCycle.cycle_id);
-      toast.success('Cycle completed successfully!');
+      toast.success('Season wrapped up! Check your final soil nutrients below.');
       setShowCompleteModal(false);
       setCompletionResult(result);
       setShowCompletionResultModal(true);
     } catch (error) {
-      toast.error('Failed to complete cycle');
+      toast.error('Something went wrong. Please try again.');
     }
   };
 
@@ -75,7 +75,7 @@ export const ActiveCycle = () => {
       <div className="min-h-screen bg-gray-50 p-4 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading active cycle...</p>
+          <p className="text-gray-600">Loading your season...</p>
         </div>
       </div>
     );
@@ -87,15 +87,15 @@ export const ActiveCycle = () => {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <p className="text-5xl mb-4">🌱</p>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">No Active Cycle</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">No Active Season</h1>
             <p className="text-gray-600 mb-6">
-              You don't have an active cycle right now. Start a new one to begin monitoring.
+              You don't have an active season right now. Start a new one to begin monitoring.
             </p>
             <button
               onClick={() => navigate('/cycle/new')}
               className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-8 rounded-lg transition"
             >
-              Start New Cycle
+              Start New Season
             </button>
           </div>
         </div>
@@ -108,8 +108,8 @@ export const ActiveCycle = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">🌾 Active Cycle</h1>
-          <p className="text-gray-600 mt-2">Monitor your crop and nutrient levels</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">🌾 Active Season</h1>
+          <p className="text-gray-600 mt-2">Monitor your crop growth and nutrient performance</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -117,12 +117,12 @@ export const ActiveCycle = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Cycle Overview */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Cycle Overview</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Season Overview</h2>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="border border-gray-200 rounded-lg p-4">
                   <p className="text-gray-600 text-sm mb-1">Crop</p>
-                  <p className="text-lg font-bold text-gray-900 capitalize">{activeCycle.crop || 'N/A'}</p>
+                  <p className="text-lg font-bold text-gray-900 capitalize">{activeCycle.crop || '—'}</p>
                 </div>
 
                 <div className="border border-gray-200 rounded-lg p-4">
@@ -150,13 +150,13 @@ export const ActiveCycle = () => {
                 <div>
                   <p className="text-gray-600 text-sm mb-1">Start Date</p>
                   <p className="text-gray-900 font-semibold">
-                    {activeCycle.start_date ? new Date(activeCycle.start_date).toLocaleDateString() : 'N/A'}
+                    {activeCycle.start_date ? new Date(activeCycle.start_date).toLocaleDateString() : '—'}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm mb-1">Expected End</p>
                   <p className="text-gray-900 font-semibold">
-                    {activeCycle.expected_end_date ? new Date(activeCycle.expected_end_date).toLocaleDateString() : 'N/A'}
+                    {activeCycle.expected_end_date ? new Date(activeCycle.expected_end_date).toLocaleDateString() : '—'}
                   </p>
                 </div>
                 <div>
@@ -200,7 +200,7 @@ export const ActiveCycle = () => {
 
             {/* Nutrient Status */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Nutrient Status</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Nutrient Levels</h2>
 
               <div className="space-y-4">
                 <NutrientBar
@@ -225,8 +225,7 @@ export const ActiveCycle = () => {
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-blue-900 text-sm">
-                  💡 <strong>Tip:</strong> Monitor nutrient levels weekly for optimal crop yield.
-                  Consider applying supplements if levels are critically low.
+                  💡 Monitor nutrients every week for best yields. Add fertilizer if levels drop too low.
                 </p>
               </div>
 
@@ -300,7 +299,7 @@ export const ActiveCycle = () => {
                             : 'bg-green-100 text-green-800'
                         }`}
                       >
-                        {measurement.below_threshold ? 'Low' : 'Normal'}
+                        {measurement.below_threshold ? 'Running low' : 'On track'}
                       </span>
                     </div>
                   ))}
@@ -328,7 +327,7 @@ export const ActiveCycle = () => {
                   onClick={() => setShowCompleteModal(true)}
                   className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                 >
-                  ✓ End Cycle
+                  ✓ Complete Season
                 </button>
               </div>
             </div>
@@ -342,19 +341,19 @@ export const ActiveCycle = () => {
                   <div>
                     <p className="text-gray-600 text-sm">Temperature</p>
                     <p className="text-lg font-semibold text-gray-900">
-                      {activeCycle.weather.temperature || 'N/A'}°C
+                      {activeCycle.weather.temperature || '—'}°C
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-600 text-sm">Humidity</p>
                     <p className="text-lg font-semibold text-gray-900">
-                      {activeCycle.weather.humidity || 'N/A'}%
+                      {activeCycle.weather.humidity || '—'}%
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-600 text-sm">Rainfall</p>
                     <p className="text-lg font-semibold text-gray-900">
-                      {activeCycle.weather.rainfall || 'N/A'} mm
+                      {activeCycle.weather.rainfall || '—'} mm
                     </p>
                   </div>
                 </div>
@@ -369,13 +368,13 @@ export const ActiveCycle = () => {
                 <div>
                   <p className="text-gray-600 text-sm">Soil Type</p>
                   <p className="text-lg font-semibold text-gray-900 capitalize">
-                    {activeCycle.soil_type || 'N/A'}
+                    {activeCycle.soil_type || '—'}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm">Soil pH</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {activeCycle.ph?.toFixed(1) || 'N/A'}
+                    {activeCycle.ph?.toFixed(1) || '—'}
                   </p>
                 </div>
               </div>
@@ -389,13 +388,13 @@ export const ActiveCycle = () => {
                 <p>
                   <span className="text-gray-600">Latitude:</span>
                   <span className="font-semibold text-gray-900 ml-2">
-                    {activeCycle.latitude?.toFixed(4) || 'N/A'}
+                    {activeCycle.latitude?.toFixed(4) || '—'}
                   </span>
                 </p>
                 <p>
                   <span className="text-gray-600">Longitude:</span>
                   <span className="font-semibold text-gray-900 ml-2">
-                    {activeCycle.longitude?.toFixed(4) || 'N/A'}
+                    {activeCycle.longitude?.toFixed(4) || '—'}
                   </span>
                 </p>
               </div>
@@ -408,10 +407,10 @@ export const ActiveCycle = () => {
       {showCompleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">End This Cycle?</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Complete This Season?</h2>
 
             <p className="text-gray-600 mb-6">
-              Are you sure you want to end this cycle? This action cannot be undone.
+              Are you sure you want to complete this season? This action cannot be undone.
             </p>
 
             <div className="space-y-3">
@@ -426,7 +425,7 @@ export const ActiveCycle = () => {
                 disabled={completeCycle.isPending}
                 className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition"
               >
-                {completeCycle.isPending ? 'Ending Cycle...' : 'Yes, End Cycle'}
+                {completeCycle.isPending ? 'Completing Season...' : 'Yes, Complete Season'}
               </button>
             </div>
           </div>
@@ -556,8 +555,8 @@ export const ActiveCycle = () => {
                 {/* Warning */}
                 {weatherResult.warning && (
                   <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-yellow-800 text-sm font-medium">🔬 Soil Test Recommended</p>
-                    <p className="text-yellow-700 text-xs mt-1">Nutrient levels are below optimal. Consider conducting a soil test.</p>
+                    <p className="text-yellow-800 text-sm font-medium">🔬 Time for a Soil Test</p>
+                    <p className="text-yellow-700 text-xs mt-1">Your nutrients have dropped below healthy levels. A soil test will show exactly what to add.</p>
                   </div>
                 )}
               </div>
@@ -595,7 +594,7 @@ export const ActiveCycle = () => {
             {/* Header */}
             <div className="text-center mb-6">
               <div className="text-5xl mb-3">🎉</div>
-              <h2 className="text-2xl font-bold text-gray-900">Cycle Completed!</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Season Completed!</h2>
               <p className="text-gray-600 mt-2">Here's your harvest summary and next steps</p>
             </div>
 
@@ -665,8 +664,8 @@ export const ActiveCycle = () => {
             {/* Success message when nutrients are good */}
             {!completionResult.next_cycle_data?.nutrients_too_low && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-center">
-                <p className="text-green-800 font-medium">✓ Your soil is ready for a new crop cycle!</p>
-                <p className="text-green-600 text-sm mt-1">Start a new cycle to get crop recommendations.</p>
+                <p className="text-green-800 font-medium">✓ Your soil is ready for a new growing season!</p>
+                <p className="text-green-600 text-sm mt-1">Start a new season to get crop recommendations.</p>
               </div>
             )}
 
@@ -677,14 +676,14 @@ export const ActiveCycle = () => {
                   onClick={handleStartNewCycle}
                   className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  🧪 Replenish Soil & Start Cycle
+                  🧪 Replenish Soil & Start Season
                 </button>
               ) : (
                 <button
                   onClick={handleStartNewCycle}
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  🌾 Start New Cycle
+                  🌾 Start New Season
                 </button>
               )}
               <button
@@ -718,17 +717,17 @@ const NutrientBar = ({ name, value, unit, type }) => {
   const config = thresholds[type] || thresholds.nitrogen;
 
   let statusColor = '#22C55E'; // Green - optimal
-  let statusText = 'Optimal';
+  let statusText = 'Plenty';
 
   if (safeValue < config.min) {
-    statusColor = '#DC2626'; // Dark red - critical
-    statusText = 'Critical';
+    statusColor = '#DC2626'; // Dark red
+    statusText = 'Dangerously Low';
   } else if (safeValue < config.optimal) {
-    statusColor = '#EF4444'; // Red - low
-    statusText = 'Low';
+    statusColor = '#EF4444'; // Red
+    statusText = 'Running Low';
   } else if (safeValue > config.max) {
-    statusColor = '#EAB308'; // Yellow - high
-    statusText = 'High';
+    statusColor = '#EAB308'; // Yellow
+    statusText = 'Too High';
   }
 
   const percentage = (safeValue / config.max) * 100;

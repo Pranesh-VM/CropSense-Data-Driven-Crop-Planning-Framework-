@@ -27,9 +27,9 @@ export const Dashboard = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-          Welcome back, <span className="text-emerald-600">{user?.username}</span>!
+          Hello, <span className="text-emerald-600">{user?.username}</span>!
         </h1>
-        <p className="text-gray-600 mt-2">Manage your crop cycles and monitor nutrient levels</p>
+        <p className="text-gray-600 mt-2">Track your growth cycles and nutrient performance</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -38,11 +38,11 @@ export const Dashboard = () => {
           {/* Active Cycle Card */}
           {hasActiveCycle ? (
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-emerald-500">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🌾 Active Cycle</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">🌾 Season Overview</h2>
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <p className="text-gray-600 text-sm">Crop</p>
-                  <p className="text-lg font-semibold text-gray-900 capitalize">{activeCycle.crop || 'N/A'}</p>
+                  <p className="text-lg font-semibold text-gray-900 capitalize">{activeCycle.crop || '—'}</p>
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm">Cycle #</p>
@@ -62,7 +62,7 @@ export const Dashboard = () => {
 
               {/* Nutrient Status Grid */}
               <div className="mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Nutrient Status</h3>
+                <h3 className="font-semibold text-gray-900 mb-3">Nutrient Levels</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <NutrientBadge
                     name="N (Nitrogen)"
@@ -91,25 +91,25 @@ export const Dashboard = () => {
                   View Details
                 </Link>
                 <button
-                  onClick={() => toast.info('Complete cycle functionality coming soon!')}
+                  onClick={() => toast.info('You can update this feature soon')}
                   className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 px-4 rounded-lg transition"
                 >
-                  End Cycle
+                  Complete Cycle
                 </button>
               </div>
             </div>
           ) : (
             <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg shadow-md p-8 border-2 border-dashed border-emerald-300 text-center">
               <p className="text-5xl mb-3">🌱</p>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Active Cycle</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Active Season</h2>
               <p className="text-gray-600 mb-4">
-                Start a new crop cycle to begin nutrient management and monitoring
+                Create your first growing season to begin tracking nutrients and performance
               </p>
               <Link
                 to="/cycle/new"
                 className="inline-block bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-6 rounded-lg transition"
               >
-                Start New Cycle
+                Start New Season
               </Link>
             </div>
           )}
@@ -119,7 +119,7 @@ export const Dashboard = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm mb-1">Total Cycles</p>
+                  <p className="text-gray-600 text-sm mb-1">Total Seasons</p>
                   <p className="text-3xl font-bold text-gray-900">{totalCycles}</p>
                 </div>
                 <div className="text-4xl">📊</div>
@@ -143,12 +143,13 @@ export const Dashboard = () => {
         <div className="lg:col-span-1">
           {/* Recent Cycles */}
           <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">📈 Recent Cycles</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">📈 Recent Seasons</h2>
 
             {historyLoading ? (
-              <div className="text-center py-4">
+              <>
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto"></div>
-              </div>
+                <p className="text-gray-600 mt-2">Gathering your recent seasons...</p>
+              </>
             ) : cycleHistory?.cycles && cycleHistory.cycles.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {cycleHistory.cycles.slice(0, 5).map((cycle, idx) => (
@@ -177,14 +178,14 @@ export const Dashboard = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No cycles yet</p>
+              <p className="text-gray-500 text-center py-4">No seasons tracked yet</p>
             )}
 
             <Link
               to="/cycle/history"
               className="mt-4 block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-2 px-4 rounded-lg transition text-center"
             >
-              View All History
+              View Full History
             </Link>
           </div>
         </div>
@@ -194,7 +195,7 @@ export const Dashboard = () => {
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-blue-900 text-sm">
-            💡 <strong>Tip:</strong> Monitor nutrient levels regularly for optimal crop yield.
+            💡 Check your nutrient levels every week for healthier crops.
           </p>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -224,20 +225,20 @@ const NutrientBadge = ({ name, value, type }) => {
   };
 
   const config = thresholds[type] || thresholds.nitrogen;
-  let status = 'optimal';
+  let status = 'Plenty';
   let bgColor = 'bg-green-100';
   let textColor = 'text-green-800';
 
   if (safeValue < config.min) {
-    status = 'Critical';
+    status = 'Dangerously Low';
     bgColor = 'bg-red-100';
     textColor = 'text-red-800';
   } else if (safeValue < config.optimal) {
-    status = 'Low';
+    status = 'Running Low';
     bgColor = 'bg-yellow-100';
     textColor = 'text-yellow-800';
   } else if (safeValue > config.max) {
-    status = 'High';
+    status = 'Too High';
     bgColor = 'bg-orange-100';
     textColor = 'text-orange-800';
   }

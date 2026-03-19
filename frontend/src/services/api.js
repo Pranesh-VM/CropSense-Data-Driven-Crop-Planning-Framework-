@@ -134,16 +134,45 @@ export const recommendationService = {
 // ============= PLANNING ENDPOINTS (Phase 3) =============
 
 export const planningService = {
-  // Compare crops using hybrid LSTM + Formula prediction
-  compareCrops: async (N, P, K, soilType, seasonIndex = 0, expectedRainfallMm = 600, candidateCrops = ['rice', 'wheat', 'maize']) => {
-    const response = await api.post('/api/planning/compare-crops', {
+  // Compare crops - Smart mode (auto-fetch top 3 from ensemble) or manual mode
+  // AUTO-FETCH MODE: Pass N, P, K, soil_type, ph, temperature, humidity, rainfall
+  // MANUAL MODE: Pass N, P, K, soil_type, candidateCrops array
+  compareCrops: async (N, P, K, soilType, seasonIndex = 0, expectedRainfallMm = 600, candidateCrops = null, weatherData = {}) => {
+    const payload = {
       N,
       P,
       K,
       soil_type: soilType,
       season_index: seasonIndex,
       expected_rainfall_mm: expectedRainfallMm,
-      candidate_crops: candidateCrops,
+      // Optional: Add weather data for auto-fetch mode
+      ph: weatherData.ph,
+      temperature: weatherData.temperature,
+      humidity: weatherData.humidity,
+      rainfall: weatherData.rainfall,
+    };
+    
+    // If candidateCrops provided, use manual mode; otherwise auto-fetch
+    if (candidateCrops && candidateCrops.length > 0) {
+      payload.candidate_crops = candidateCrops;
+    }
+    
+    const response = await api.post('/api/planning/compare-crops', payload);
+    return response.data;
+  },
+  
+  // Convenience method: Auto-fetch top 3 crops without manual selection
+  compareCropsAutoFetch: async (N, P, K, soilType, ph = 6.5, temperature = 25, humidity = 60, rainfall = 100) => {
+    const response = await api.post('/api/planning/compare-crops', {
+      N,
+      P,
+      K,
+      soil_type: soilType,
+      ph,
+      temperature,
+      humidity,
+      rainfall,
+      // Omit candidate_crops to trigger auto-fetch
     });
     return response.data;
   },

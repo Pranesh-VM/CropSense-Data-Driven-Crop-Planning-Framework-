@@ -23,7 +23,7 @@ export const Login = () => {
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking session...</p>
+          <p className="text-gray-600">Validating Session...</p>
         </div>
       </div>
     );
@@ -49,7 +49,7 @@ export const Login = () => {
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">🌱</div>
           <h1 className="text-3xl font-bold text-gray-900">CropSense</h1>
-          <p className="text-gray-600 mt-2">Login to Your Account</p>
+          <p className="text-gray-600 mt-2">Sign In</p>
         </div>
 
         {/* Error Alert */}
@@ -74,8 +74,8 @@ export const Login = () => {
                 errors.email ? 'border-red-500' : 'border-gray-300'
               }`}
               {...register('email', {
-                required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Please enter a valid email' },
+                required: 'Email address is required',
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Check your email format' },
               })}
             />
             {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
@@ -95,7 +95,7 @@ export const Login = () => {
               }`}
               {...register('password', {
                 required: 'Password is required',
-                minLength: { value: 6, message: 'Password must be at least 6 characters' },
+                minLength: { value: 6, message: 'Password needs to be at least 6 characters' },
               })}
             />
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
@@ -112,10 +112,10 @@ export const Login = () => {
                 <svg className="animate-spin h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v20m10-10H2" />
                 </svg>
-                Logging in...
+                Signing In...
               </span>
             ) : (
-              'Login'
+              'Sign In'
             )}
           </button>
         </form>
@@ -131,7 +131,7 @@ export const Login = () => {
         <p className="text-center text-gray-700">
           Don't have an account?{' '}
           <Link to="/signup" className="text-emerald-600 font-semibold hover:underline">
-            Sign up here
+            Create One
           </Link>
         </p>
 

@@ -442,6 +442,49 @@ class QLearningAgent:
             'current_epsilon': round(self.epsilon, 4)
         }
     
+    def score_sequence(self, initial_state: EnvironmentState, sequence: List[str]) -> float:
+        """
+        Score a specific crop rotation sequence using learned Q-values.
+        
+        Args:
+            initial_state: Starting soil state
+            sequence: List of crops to evaluate
+        
+        Returns:
+            Cumulative Q-value score (normalized, 0-100 scale)
+        """
+        try:
+            state = initial_state.copy()
+            cumulative_q_score = 0.0
+            valid_crops = 0
+            
+            for crop in sequence:
+                # Skip crops not in Q-agent pool
+                if crop not in self.crop_to_idx:
+                    print(f"Warning: Crop '{crop}' not in Q-agent pool, skipping Q-scoring")
+                    continue
+                
+                try:
+                    q_value = self._get_q_value(state, crop)
+                    cumulative_q_score += q_value
+                    valid_crops += 1
+                    
+                    # Advance state after this crop
+                    next_state, _, _ = self.simulator.transition(state, crop)
+                    state = next_state
+                except Exception as e:
+                    print(f"Warning: Could not score crop {crop}: {e}")
+                    continue
+            
+            # Normalize to 0-100 scale
+            avg_q_score = cumulative_q_score / valid_crops if valid_crops > 0 else 0
+            normalized_score = max(0, min(100, (avg_q_score + 1) * 50))  # Range 0-100
+            
+            return round(normalized_score, 1)
+        except Exception as e:
+            print(f"Warning: score_sequence failed: {e}")
+            return 50.0  # Neutral score on complete failure
+    
     def get_action_values(self, state: EnvironmentState) -> Dict[str, float]:
         """
         Get Q-values for all actions in a given state.

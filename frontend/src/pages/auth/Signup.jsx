@@ -24,7 +24,7 @@ export const Signup = () => {
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking session...</p>
+          <p className="text-gray-600">Validating Session...</p>
         </div>
       </div>
     );
@@ -70,14 +70,14 @@ export const Signup = () => {
             <input
               id="username"
               type="text"
-              placeholder="Choose a username"
+              placeholder="Choose your username"
               className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm ${
                 errors.username ? 'border-red-500' : 'border-gray-300'
               }`}
               {...register('username', {
-                required: 'Username is required',
-                minLength: { value: 3, message: 'Username must be at least 3 characters' },
-                maxLength: { value: 30, message: 'Username must be at most 30 characters' },
+                required: 'Choose a username to get started',
+                minLength: { value: 3, message: 'Username needs to be at least 3 characters' },
+                maxLength: { value: 30, message: 'Username should be 30 characters or less' },
                 pattern: { value: /^[a-zA-Z0-9_]+$/, message: 'Username can only contain letters, numbers, and underscore' },
               })}
             />
@@ -98,7 +98,7 @@ export const Signup = () => {
               }`}
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email format' },
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'This doesn\'t look like an email' },
               })}
             />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
@@ -118,7 +118,7 @@ export const Signup = () => {
               }`}
               {...register('phone', {
                 required: 'Phone number is required',
-                pattern: { value: /^[0-9]{10}$/, message: 'Phone number must be 10 digits' },
+                pattern: { value: /^[0-9]{10}$/, message: 'Please enter a valid 10-digit phone number' },
               })}
             />
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
@@ -138,7 +138,7 @@ export const Signup = () => {
               }`}
               {...register('password', {
                 required: 'Password is required',
-                minLength: { value: 6, message: 'Password must be at least 6 characters' },
+                minLength: { value: 6, message: 'Password needs to be at least 6 characters' },
               })}
             />
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
@@ -158,7 +158,7 @@ export const Signup = () => {
               }`}
               {...register('confirmPassword', {
                 required: 'Please confirm your password',
-                validate: (value) => value === password || 'Passwords do not match',
+                validate: (value) => value === password || 'Passwords don\'t match',
               })}
             />
             {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>}
@@ -194,7 +194,7 @@ export const Signup = () => {
         <p className="text-center text-gray-700 text-sm">
           Already have an account?{' '}
           <Link to="/login" className="text-emerald-600 font-semibold hover:underline">
-            Login here
+            Sign In
           </Link>
         </p>
 

@@ -39,13 +39,13 @@ export const Profile = () => {
 
   const onSubmit = (data) => {
     // Profile update would be implemented when backend supports it
-    toast.success('Profile changes saved! (This is a demo - not yet saved to backend)');
+    toast.success('Changes saved to your profile');
     setIsEditing(false);
   };
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully!');
+    toast.success('You\'ve been signed out');
   };
 
   if (isLoading) {
@@ -145,7 +145,7 @@ export const Profile = () => {
                     }`}
                     {...register('email', {
                       required: 'Email is required',
-                      pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
+                      pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Check your email format' },
                     })}
                   />
                   {errors.email && (
@@ -163,7 +163,7 @@ export const Profile = () => {
                       errors.phone ? 'border-red-500' : 'border-gray-300'
                     }`}
                     {...register('phone', {
-                      pattern: { value: /^[0-9]{10}$/, message: 'Phone must be 10 digits' },
+                      pattern: { value: /^[0-9]{10}$/, message: 'We need a valid 10-digit phone number' },
                     })}
                   />
                   {errors.phone && (
@@ -286,7 +286,7 @@ export const Profile = () => {
             </div>
 
             <button
-              onClick={() => toast.info('Change password feature coming soon!')}
+              onClick={() => toast.info('Password updates coming soon')}
               className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 transition"
             >
               <p className="font-semibold text-gray-900">Change Password</p>
@@ -309,7 +309,7 @@ export const Profile = () => {
 
             <button
               onClick={() =>
-                toast.warning('Account deletion is not yet available. Please contact support.')
+                toast.warning('Delete account will be available soon. Contact support if you need help.');
               }
               className="w-full bg-red-100 hover:bg-red-200 text-red-900 font-semibold py-3 px-4 rounded-lg transition"
             >

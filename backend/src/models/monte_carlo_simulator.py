@@ -188,7 +188,8 @@ class MonteCarloSimulator:
         state: EnvironmentState,
         candidate_crops: List[str],
         rainfall_uncertainty_pct: float = 0.20,
-        price_uncertainty_pct: float = 0.15
+        price_uncertainty_pct: float = 0.15,
+        crop_prices: Optional[Dict[str, float]] = None
     ) -> List[Dict]:
         """
         Compare risk profiles of multiple crops.
@@ -203,6 +204,7 @@ class MonteCarloSimulator:
             candidate_crops: List of crop names to compare
             rainfall_uncertainty_pct: Rainfall variation (default ±20%)
             price_uncertainty_pct: Price variation (default ±15%)
+            crop_prices: Optional dict of crop prices (e.g., {'rice': 2150, 'wheat': 2300})
         
         Returns:
             List sorted by risk_adjusted_score (descending):
@@ -213,6 +215,7 @@ class MonteCarloSimulator:
                     'std_dev': 8000,
                     'prob_of_loss': 0.04,
                     'risk_adjusted_score': 33000,   ← RECOMMENDED (low risk)
+                    'base_price_per_quintal': 4500,
                     ...
                 },
                 {
@@ -221,6 +224,7 @@ class MonteCarloSimulator:
                     'std_dev': 12000,
                     'prob_of_loss': 0.09,
                     'risk_adjusted_score': 32000,
+                    'base_price_per_quintal': 2300,
                     ...
                 },
                 {
@@ -229,6 +233,7 @@ class MonteCarloSimulator:
                     'std_dev': 18000,
                     'prob_of_loss': 0.14,
                     'risk_adjusted_score': 34000,   ← High reward but risky
+                    'base_price_per_quintal': 2150,
                     ...
                 }
             ]
@@ -236,16 +241,26 @@ class MonteCarloSimulator:
         profiles = []
         
         for crop in candidate_crops:
+            # Get crop-specific price if provided
+            crop_price = None
+            if crop_prices and crop in crop_prices:
+                crop_price = float(crop_prices[crop])
+            
             result = self.simulate_crop_profit(
                 state=state,
                 crop=crop,
                 rainfall_uncertainty_pct=rainfall_uncertainty_pct,
-                price_uncertainty_pct=price_uncertainty_pct
+                price_uncertainty_pct=price_uncertainty_pct,
+                market_price_override=crop_price  # Pass real market price
             )
             
             if 'error' in result:
                 profiles.append(result)
                 continue
+            
+            # Add base price to result
+            if crop_prices and crop in crop_prices:
+                result['base_price_per_quintal'] = crop_prices[crop]
             
             # Calculate risk-adjusted score
             # Simple: mean - 1*std_dev (Sharpe-like ratio without risk-free rate)

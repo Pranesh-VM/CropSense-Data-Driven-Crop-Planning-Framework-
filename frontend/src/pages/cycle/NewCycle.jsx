@@ -65,10 +65,10 @@ export const NewCycle = () => {
 
       if (result && result.recommendations) {
         setStep(2);
-        toast.success('Recommendations fetched successfully!');
+        toast.success('Found crops that match your soil!');
       }
     } catch (error) {
-      toast.error('Failed to fetch recommendations. Please try again.');
+      toast.error('Can\'t get recommendations right now. Try updating your soil data.');
     }
   };
 
@@ -88,11 +88,11 @@ export const NewCycle = () => {
       });
 
       if (result) {
-        toast.success('Cycle started successfully!');
+        toast.success('Season started! Let\'s grow.');
         navigate('/cycle/active');
       }
     } catch (error) {
-      toast.error('Failed to start cycle. Please try again.');
+      toast.error('Couldn\'t start your season. Try again.');
     }
   };
 
@@ -104,7 +104,7 @@ export const NewCycle = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">🌾 Start New Cycle</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">🌾 Start New Season</h1>
           <p className="text-gray-600 mt-2">
             Enter soil nutrient levels to get crop recommendations
           </p>
@@ -116,7 +116,7 @@ export const NewCycle = () => {
             <div className="flex items-start gap-3">
               <span className="text-2xl">📊</span>
               <div>
-                <p className="font-semibold text-blue-800">Continuing from Previous Cycle</p>
+                <p className="font-semibold text-blue-800">Continuing from Previous Season</p>
                 <p className="text-blue-700 text-sm mt-1">
                   Nutrient values have been pre-filled with your soil's current levels after the last harvest. 
                   Adjust the values if you've applied fertilizers or the soil has been tested recently.
@@ -336,7 +336,7 @@ export const NewCycle = () => {
             {getRecommendations.isPending ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading recommendations...</p>
+                <p className="text-gray-600">Fetching Recommendations...</p>
               </div>
             ) : hasRecommendations ? (
               <div className="space-y-4 mb-6">
@@ -416,7 +416,7 @@ export const NewCycle = () => {
         {/* Step 3: Confirmation */}
         {step === 3 && (
           <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirm Cycle Details</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirm Season Details</h2>
 
             <div className="space-y-4 mb-8">
               <div className="border border-gray-200 rounded-lg p-4">
@@ -447,7 +447,7 @@ export const NewCycle = () => {
 
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-8">
               <p className="text-emerald-900">
-                ✅ Everything looks good! Click <strong>Start Cycle</strong> to begin your crop management.
+                ✅ Everything looks good! Click <strong>Start Season</strong> to begin your crop management.
               </p>
             </div>
 
@@ -464,7 +464,7 @@ export const NewCycle = () => {
                 disabled={startCycle.isPending}
                 className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition"
               >
-                {startCycle.isPending ? 'Starting Cycle...' : 'Start Cycle'}
+                {startCycle.isPending ? 'Starting Season...' : 'Start Season'}
               </button>
             </div>
           </div>

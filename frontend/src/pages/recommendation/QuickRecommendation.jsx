@@ -31,10 +31,10 @@ export const QuickRecommendation = () => {
     ),
     onSuccess: (response) => {
       setRecommendations(response.top_3_crops || []);
-      toast.success('Recommendations fetched successfully!');
+      toast.success('Great! Here are your top crop choices');
     },
     onError: (error) => {
-      toast.error('Failed to fetch recommendations');
+      toast.error('Couldn\'t get recommendations. Check your soil data and try again.');
       console.error(error);
     },
   });

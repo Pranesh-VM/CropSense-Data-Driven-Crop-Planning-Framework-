@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from itertools import permutations
 
 # Load environment variables
 load_dotenv()
@@ -30,6 +31,7 @@ from database.db_utils import DatabaseManager
 from src.auth.auth import FarmerAuthService, require_auth
 from src.services.rindm_cycle_manager import RINDMCycleManager
 from src.services.weather_monitor import get_monitor_instance, start_monitor
+from src.services.market_price import MarketPriceService
 
 # ============================================================================
 # PHASE 3 IMPORTS
@@ -164,6 +166,34 @@ if Q_AGENT_PATH.exists():
         print(f"⚠ Could not load Q-Learning agent: {e}")
 else:
     print("⚠ Q-Learning agent not trained yet. POST /api/planning/train-q-agent to train.")
+
+# Seed sample financial history data
+def seed_financial_history():
+    """Insert sample financial history for demo/testing"""
+    try:
+        with db.get_connection() as (conn, cursor):
+            # Check if sample data already exists
+            cursor.execute("SELECT COUNT(*) as cnt FROM cycle_performance_history WHERE crop_name IN ('Rice Demo', 'Wheat Demo', 'Maize Demo')")
+            if cursor.fetchone()['cnt'] == 0:
+                # Insert sample records (using farmer_id 1 as default)
+                sample_data = [
+                    (1, 1, 'C001', 'Rice Demo', 'kharif', '2025-06-01', '2025-10-15', 136, 90, 42, 43, 25, 15, 18, 650, 5500, 18.5, 89000, 5000, 84000),
+                    (1, 1, 'C002', 'Wheat Demo', 'rabi', '2025-11-01', '2026-03-20', 140, 85, 38, 40, 20, 12, 15, 450, 4800, 21.0, 95000, 4000, 91000),
+                    (1, 1, 'C003', 'Maize Demo', 'kharif', '2025-06-15', '2025-10-30', 137, 88, 40, 42, 22, 14, 16, 700, 5200, 16.5, 78000, 6000, 72000),
+                ]
+                cursor.execute("""
+                    INSERT INTO cycle_performance_history 
+                    (farmer_id, field_id, cycle_id, crop_name, season, start_date, end_date, duration_days,
+                     initial_n, initial_p, initial_k, final_n, final_p, final_k, 
+                     total_rainfall_mm, yield_kg_ha, market_price_per_kg, profit_per_ha, soil_penalty, reward)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, sample_data)
+                conn.commit()
+                print("✓ Sample financial history seeded")
+    except Exception as e:
+        print(f"⚠ Could not seed financial history: {e}")
+
+seed_financial_history()
 
 # Start weather monitoring in background
 MONITOR_ENABLED = os.getenv('ENABLE_WEATHER_MONITOR', 'true').lower() == 'true'
@@ -712,30 +742,84 @@ def complete_cycle(current_user, cycle_id):
             next_crop_recommendations = []
         
         # ================================================================
-        # PHASE 3: Write completed cycle to performance history table
+        # PHASE 3: Write completed cycle to performance history table with financials
         # ================================================================
         try:
             with db.get_connection() as (conn, cursor):
+                # Get cycle details for financial calculations
                 cursor.execute("""
-                    INSERT INTO cycle_performance_history (
-                        farmer_id, field_id, cycle_id, crop_name,
-                        initial_n, initial_p, initial_k,
-                        final_n,   final_p,   final_k,
-                        total_rainfall_mm
-                    )
-                    SELECT
-                        cc.farmer_id, cc.field_id, cc.cycle_id, cc.crop_name,
-                        cc.initial_n_kg_ha, cc.initial_p_kg_ha, cc.initial_k_kg_ha,
-                        cc.final_n_kg_ha,   cc.final_p_kg_ha,   cc.final_k_kg_ha,
-                        COALESCE(SUM(re.rainfall_mm), 0) as total_rainfall_mm
+                    SELECT cc.cycle_id, cc.crop_name, cc.initial_n_kg_ha, cc.initial_p_kg_ha, 
+                           cc.initial_k_kg_ha, cc.final_n_kg_ha, cc.final_p_kg_ha, cc.final_k_kg_ha,
+                           cc.start_date, cc.actual_end_date, cc.actual_yield_tonnes_ha, cc.farmer_id, cc.field_id,
+                           COALESCE(SUM(re.rainfall_mm), 0) as total_rainfall_mm
                     FROM crop_cycles cc
                     LEFT JOIN rainfall_events re ON cc.cycle_id = re.cycle_id
                     WHERE cc.cycle_id = %s
-                    GROUP BY cc.cycle_id, cc.farmer_id, cc.field_id, cc.crop_name,
+                    GROUP BY cc.cycle_id, cc.farmer_id, cc.field_id, cc.crop_name, cc.start_date, cc.actual_end_date,
                              cc.initial_n_kg_ha, cc.initial_p_kg_ha, cc.initial_k_kg_ha,
-                             cc.final_n_kg_ha,   cc.final_p_kg_ha,   cc.final_k_kg_ha
-                    ON CONFLICT DO NOTHING
+                             cc.final_n_kg_ha, cc.final_p_kg_ha, cc.final_k_kg_ha, cc.actual_yield_tonnes_ha
                 """, (cycle_id,))
+                
+                cycle_data = cursor.fetchone()
+                if cycle_data:
+                    # Calculate financial metrics
+                    seed_cost = 2000.0  # Default ₹/ha
+                    fertilizer_cost = 3500.0  # Default ₹/ha
+                    labour_cost = 4000.0  # Default ₹/ha
+                    market_price = 18.0  # Default ₹/kg (will be overridden by market_price_service)
+                    actual_yield = cycle_data['actual_yield_tonnes_ha'] or 5.0
+                    
+                    try:
+                        # Try to get market price for this crop
+                        market_prices = MarketPriceService.get_multiple_prices([cycle_data['crop_name']])
+                        if market_prices and cycle_data['crop_name'] in market_prices:
+                            market_price = market_prices[cycle_data['crop_name']]
+                    except:
+                        pass
+                    
+                    revenue = actual_yield * 1000 * market_price  # yield_tonnes * 1000 kg/tonne * price/kg
+                    total_cost = seed_cost + fertilizer_cost + labour_cost
+                    profit = revenue - total_cost
+                    soil_penalty = max(0, (40 - cycle_data['final_n_kg_ha']) * 50)  # Penalize low N
+                    reward = profit - soil_penalty
+                    
+                    # Get season name
+                    start_month = cycle_data['start_date'].month if cycle_data['start_date'] else 6
+                    if start_month in [6, 7, 8, 9, 10]:
+                        season = 'kharif'
+                    elif start_month in [11, 12, 1, 2]:
+                        season = 'rabi'
+                    elif start_month in [3, 4, 5]:
+                        season = 'zaid'
+                    else:
+                        season = 'annual'
+                    
+                    # Insert or update performance history
+                    cursor.execute("""
+                        INSERT INTO cycle_performance_history (
+                            farmer_id, field_id, cycle_id, crop_name, season,
+                            start_date, end_date, duration_days,
+                            initial_n, initial_p, initial_k,
+                            final_n, final_p, final_k,
+                            total_rainfall_mm, yield_kg_ha, market_price_per_kg,
+                            profit_per_ha, soil_penalty, reward
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (cycle_id) DO UPDATE SET
+                            yield_kg_ha = EXCLUDED.yield_kg_ha,
+                            market_price_per_kg = EXCLUDED.market_price_per_kg,
+                            profit_per_ha = EXCLUDED.profit_per_ha,
+                            reward = EXCLUDED.reward
+                    """, (
+                        cycle_data['farmer_id'], cycle_data['field_id'], cycle_id, cycle_data['crop_name'], season,
+                        cycle_data['start_date'], cycle_data['actual_end_date'], 
+                        (cycle_data['actual_end_date'] - cycle_data['start_date']).days if cycle_data['actual_end_date'] else 0,
+                        cycle_data['initial_n_kg_ha'], cycle_data['initial_p_kg_ha'], cycle_data['initial_k_kg_ha'],
+                        cycle_data['final_n_kg_ha'], cycle_data['final_p_kg_ha'], cycle_data['final_k_kg_ha'],
+                        cycle_data['total_rainfall_mm'], actual_yield * 1000, market_price,
+                        profit, soil_penalty, reward
+                    ))
+                    conn.commit()
+                    print(f"✓ Cycle {cycle_id} logged to performance history (Profit: ₹{profit:.0f}/ha)")
         except Exception as e:
             print(f"Warning: Could not log cycle to performance history: {e}")
         
@@ -883,186 +967,254 @@ def crop_info(crop_name):
 @require_auth
 def compare_crop_trajectories(current_user):
     """
-    Compare look-ahead soil trajectories for candidate crops.
-    Uses HYBRID approach: Formula (RINDM) + LSTM (learned patterns).
+    SIMPLIFIED: Show only nutrient depletion prediction for top 3 crops.
     
-    - Formula: Deterministic RINDM calculation (always available)
-    - LSTM: Learned from cross-field historical data (if trained)
-    - Blended: 60% LSTM + 40% Formula (more accurate)
-    
-    History is fetched internally from database - no user input needed.
+    Auto-fetches top 3 crops from ensemble model.
+    Returns ONLY 30-day nutrient trajectory (N, P, K depletion in kg/ha).
     
     POST /api/planning/compare-crops
     Headers: Authorization: Bearer <token>
     Body: {
         "N": 90, "P": 42, "K": 43,
-        "soil_type": "loamy",
-        "season_index": 0,
-        "expected_rainfall_mm": 600,
-        "candidate_crops": ["rice", "wheat", "lentil"]
+        "soil_type": "loamy"
+    }
+    
+    Response: {
+        "success": true,
+        "crops": [
+            {
+                "crop": "rice",
+                "initial": {"N": 90, "P": 42, "K": 43},
+                "final": {"N": 45.2, "P": 28.5, "K": 35.1},
+                "depletion": {"N": 44.8, "P": 13.5, "K": 7.9}
+            }
+        ]
     }
     """
     try:
         data = request.get_json()
         required = ['N', 'P', 'K', 'soil_type']
         if not all(f in data for f in required):
-            return jsonify({'error': f'Missing required fields: {required}'}), 400
+            return jsonify({'success': False, 'error': f'Missing required fields: {required}'}), 400
 
         n = float(data['N'])
         p = float(data['P'])
         k = float(data['K'])
         soil_type = data['soil_type']
-        season_index = int(data.get('season_index', 0))
-        expected_rainfall = float(data.get('expected_rainfall_mm', 500))
-        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
-        
-        state = EnvironmentState(
-            n=n, p=p, k=k,
-            season_index=season_index,
-            expected_rainfall_mm=expected_rainfall,
-            soil_type=soil_type
-        )
-
-        # ================================================================
-        # METHOD 1: Formula-based prediction (RINDM - always available)
-        # ================================================================
-        formula_options = transition_sim.compare_crop_options(state, crops)
         
         # ================================================================
-        # METHOD 2: LSTM prediction (if trained on cross-field data)
+        # Get top 3 crops from ensemble model
         # ================================================================
-        lstm_predictions = {}
-        use_lstm = lstm_trained and lstm_predictor is not None
+        try:
+            features = {
+                'N': n,
+                'P': p,
+                'K': k,
+                'temperature': float(data.get('temperature', 25.0)),
+                'humidity': float(data.get('humidity', 60.0)),
+                'ph': float(data.get('ph', 6.5)),
+                'rainfall': float(data.get('rainfall', 100.0))
+            }
+            
+            ensemble_result = recommender.recommend(**features)
+            top_3 = ensemble_result.get('top_3_crops', [])
+            crops = [crop_data['crop'] for crop_data in top_3[:3]] if top_3 else ['rice', 'wheat', 'lentil']
+        except Exception as e:
+            print(f"⚠ Ensemble failed, using defaults: {e}")
+            crops = ['rice', 'wheat', 'lentil']
         
-        if use_lstm:
+        # ================================================================
+        # Calculate 30-day nutrient depletion using LSTM
+        # ================================================================
+        results = []
+        
+        # Check if LSTM is trained
+        if not lstm_trained or lstm_predictor is None:
+            return jsonify({
+                'success': False,
+                'error': 'LSTM model not trained. Call /api/planning/train-lstm-quick first.'
+            }), 400
+        
+        # For each crop, get LSTM prediction
+        for crop in crops:
             try:
-                # Fetch last 30 days of cross-field historical data from DB
-                # This uses data from ALL farmers for better generalization
+                # Get historical data for this crop (or cross-field if not enough)
                 recent_data = ts_data_manager.get_timeseries_for_training(
-                    farmer_id=None,  # All farmers (cross-field)
-                    crop_name=None,  # All crops
-                    days_back=60,
+                    farmer_id=None,  # Use cross-field data
+                    crop_name=crop,
+                    days_back=30,
                     use_synthetic_if_empty=True
                 )
                 
-                if len(recent_data) >= 30:
-                    # Rename columns to match LSTM input format
-                    recent_data = recent_data.rename(columns={
-                        'n_kg_ha': 'n_kg_ha',
-                        'p_kg_ha': 'p_kg_ha',
-                        'k_kg_ha': 'k_kg_ha'
-                    })
-                    
-                    # Get LSTM predictions for each crop's typical duration
-                    from src.utils.crop_nutrient_database import CROP_NUTRIENT_DATA
-                    
-                    for crop in crops:
-                        crop_info = CROP_NUTRIENT_DATA.get(crop.lower(), {})
-                        duration = crop_info.get('duration_days', 90)
-                        
-                        # Predict nutrient trajectory
-                        lstm_result = lstm_predictor.predict_next_days(
-                            recent_data.tail(30)
-                        )
-                        
-                        if lstm_result.get('success'):
-                            # Get prediction at crop duration (or last available)
-                            preds = lstm_result.get('predictions', [])
-                            if preds:
-                                # Use min of forecast_days and available predictions
-                                idx = min(len(preds) - 1, duration // (90 // 7))  # Scale to available
-                                final_pred = preds[-1]  # Use last prediction
-                                lstm_predictions[crop] = {
-                                    'N': final_pred.get('predicted_n', n),
-                                    'P': final_pred.get('predicted_p', p),
-                                    'K': final_pred.get('predicted_k', k)
-                                }
-            except Exception as e:
-                print(f"⚠ LSTM prediction error: {e}")
-                use_lstm = False
-        
-        # ================================================================
-        # BLEND PREDICTIONS: 60% LSTM + 40% Formula
-        # ================================================================
-        LSTM_WEIGHT = 0.6
-        FORMULA_WEIGHT = 0.4
-        
-        results = []
-        for opt in formula_options:
-            crop = opt['crop']
-            formula_final = opt['next_state']  # next_state contains N, P, K uppercase
-            
-            # Start with formula prediction
-            blended_state = {
-                'N': formula_final['N'],
-                'P': formula_final['P'],
-                'K': formula_final['K']
-            }
-            
-            prediction_method = 'formula_only'
-            lstm_state = None
-            
-            # Blend with LSTM if available
-            if use_lstm and crop in lstm_predictions:
-                lstm_pred = lstm_predictions[crop]
-                lstm_state = {
-                    'N': round(lstm_pred['N'], 2),
-                    'P': round(lstm_pred['P'], 2),
-                    'K': round(lstm_pred['K'], 2)
+                if len(recent_data) < 30:
+                    # If insufficient real data, supplement with synthetic
+                    print(f"⚠ Insufficient data for {crop}, using synthetic")
+                    recent_data = ts_data_manager.get_timeseries_for_training(
+                        farmer_id=None,
+                        crop_name=crop,
+                        days_back=30,
+                        use_synthetic_if_empty=True
+                    )
+                
+                # Get LSTM prediction for next 30 days
+                prediction_result = lstm_predictor.predict_next_days(recent_data)
+                
+                if not prediction_result.get('success'):
+                    print(f"⚠ LSTM prediction failed for {crop}: {prediction_result.get('error')}")
+                    continue
+                
+                # Extract final day prediction (30th day)
+                predictions = prediction_result.get('predictions', [])
+                if not predictions:
+                    print(f"⚠ No predictions returned for {crop}")
+                    continue
+                
+                # Get last day (30 days ahead)
+                final_pred = predictions[-1]
+                
+                final_n = round(final_pred.get('predicted_n', n), 2)
+                final_p = round(final_pred.get('predicted_p', p), 2)
+                final_k = round(final_pred.get('predicted_k', k), 2)
+                
+                depletion = {
+                    'N': round(n - final_n, 2),
+                    'P': round(p - final_p, 2),
+                    'K': round(k - final_k, 2)
                 }
                 
-                blended_state = {
-                    'N': round(LSTM_WEIGHT * lstm_pred['N'] + FORMULA_WEIGHT * formula_final['N'], 2),
-                    'P': round(LSTM_WEIGHT * lstm_pred['P'] + FORMULA_WEIGHT * formula_final['P'], 2),
-                    'K': round(LSTM_WEIGHT * lstm_pred['K'] + FORMULA_WEIGHT * formula_final['K'], 2)
-                }
-                prediction_method = 'lstm_blended'
-            
-            result = {
-                'crop': crop,
-                'season': ['kharif', 'rabi', 'zaid', 'summer'][season_index % 4],
-                'initial_state': {'N': n, 'P': p, 'K': k},
-                'formula_prediction': {
-                    'N': round(formula_final['N'], 2),
-                    'P': round(formula_final['P'], 2),
-                    'K': round(formula_final['K'], 2)
-                },
-                'final_state': blended_state,  # This is the main prediction
-                'immediate_reward': opt.get('immediate_reward', 0),
-                'future_value': opt.get('future_value_estimate', 0),
-                'total_value': opt.get('total_estimated_value', 0),
-                'prediction_method': prediction_method
-            }
-            
-            # Include LSTM prediction separately if available
-            if lstm_state:
-                result['lstm_prediction'] = lstm_state
-                result['blend_weights'] = {'lstm': LSTM_WEIGHT, 'formula': FORMULA_WEIGHT}
-            
-            results.append(result)
+                results.append({
+                    'crop': crop,
+                    'initial': {'N': n, 'P': p, 'K': k},
+                    'final': {
+                        'N': final_n,
+                        'P': final_p,
+                        'K': final_k
+                    },
+                    'depletion': depletion,
+                    'prediction_method': 'lstm'
+                })
+                
+            except Exception as e:
+                print(f"⚠ Error predicting for {crop}: {e}")
+                continue
         
-        # Sort by total value (highest first)
-        results.sort(key=lambda x: x['total_value'], reverse=True)
+        if not results:
+            return jsonify({
+                'success': False,
+                'error': 'Could not predict depletion for any crops'
+            }), 500
+        
+        # Sort by total depletion (ascending = gentler crops first)
+        results.sort(key=lambda x: x['depletion']['N'] + x['depletion']['P'] + x['depletion']['K'])
         
         return jsonify({
             'success': True,
-            'lstm_available': LSTM_AVAILABLE,
-            'lstm_trained': lstm_trained,
-            'prediction_method': 'lstm_blended' if use_lstm else 'formula_only',
-            'blend_weights': {'lstm': LSTM_WEIGHT, 'formula': FORMULA_WEIGHT} if use_lstm else None,
-            'options': results
+            'crops': results[:3],  # Return top 3
+            'note': 'Predictions using trained LSTM model'
         }), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/planning/get-lstm-status', methods=['GET'])
+@require_auth
+def get_lstm_status(current_user):
+    """
+    Check LSTM training status.
+    GET /api/planning/get-lstm-status
+    """
+    try:
+        model_exists = (LSTM_MODEL_PATH / 'lstm_nutrient_model.h5').exists()
+        
+        return jsonify({
+            'success': True,
+            'lstm_trained': lstm_trained,
+            'model_exists': model_exists,
+            'model_path': str(LSTM_MODEL_PATH)
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/planning/train-lstm-quick', methods=['POST'])
+@require_auth
+def train_lstm_quick(current_user):
+    """
+    Quick LSTM training with minimal epochs (PC-friendly).
+    Uses synthetic data if needed.
+    
+    POST /api/planning/train-lstm-quick
+    Timeout: ~5-10 seconds
+    """
+    try:
+        global lstm_predictor, lstm_trained
+        
+        if lstm_trained and (LSTM_MODEL_PATH / 'lstm_nutrient_model.h5').exists():
+            return jsonify({
+                'success': True,
+                'message': 'LSTM already trained',
+                'status': 'ready'
+            }), 200
+        
+        print("\n🚀 Starting quick LSTM training...")
+        
+        if not LSTM_AVAILABLE:
+            return jsonify({'success': False, 'error': 'TensorFlow not installed'}), 400
+        
+        # Initialize predictor
+        lstm_predictor = LSTMNutrientPredictor(
+            lookback_days=30,
+            forecast_days=30
+        )
+        
+        # Get cross-field data
+        df = ts_data_manager.get_timeseries_for_training(
+            farmer_id=None,
+            crop_name=None,
+            days_back=365,
+            use_synthetic_if_empty=True  # Use synthetic if real data insufficient
+        )
+        
+        if df.empty:
+            return jsonify({'success': False, 'error': 'No data available'}), 400
+        
+        print(f"✓ Loaded {len(df)} data points")
+        
+        # Train with minimal epochs (PC-friendly: 15 epochs for quick training)
+        result = lstm_predictor.train(
+            df,
+            epochs=15,  # Reduced from 50 for PC efficiency
+            batch_size=16,  # Smaller batch size
+            verbose=0  # Quiet mode
+        )
+        
+        # Save model
+        LSTM_MODEL_PATH.mkdir(parents=True, exist_ok=True)
+        lstm_predictor.save_model(str(LSTM_MODEL_PATH))
+        
+        lstm_trained = True
+        
+        return jsonify({
+            'success': True,
+            'message': 'LSTM trained successfully',
+            'epochs': 15,
+            'data_points': len(df),
+            'status': 'ready'
+        }), 200
+        
+    except Exception as e:
+        print(f"⚠ LSTM training error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 
 @app.route('/api/planning/profit-risk-report', methods=['POST'])
 @require_auth
 def profit_risk_report(current_user):
     """
-    Monte Carlo profit distribution for candidate crops.
-    Simulates 2000 future scenarios with varying rainfall and market price.
+    Monte Carlo profit distribution for candidate crops using REAL MARKET PRICES.
+    Simulates 2000 future scenarios with varying rainfall and market price from Data.gov.in API.
     
     POST /api/planning/profit-risk-report
     Headers: Authorization: Bearer <token>
@@ -1074,42 +1226,122 @@ def profit_risk_report(current_user):
         "rainfall_uncertainty_pct": 0.20,
         "price_uncertainty_pct": 0.15
     }
+    
+    Response: {
+        "success": true,
+        "risk_profiles": [
+            {
+                "crop": "rice",
+                "scenarios": 2000,
+                "base_price_per_quintal": 2150,
+                "min_profit_rs": 15000,
+                "max_profit_rs": 85000,
+                "mean_profit_rs": 48000,
+                "median_profit_rs": 50000,
+                "deviation_rs": 12000
+            }
+        ]
+    }
     """
     try:
         data = request.get_json()
         required = ['N', 'P', 'K', 'soil_type']
         if not all(f in data for f in required):
-            return jsonify({'error': f'Missing required fields: {required}'}), 400
+            return jsonify({'success': False, 'error': f'Missing required fields: {required}'}), 400
 
-        state = EnvironmentState(
-            n=float(data['N']),
-            p=float(data['P']),
-            k=float(data['K']),
-            soil_type=data['soil_type'],
-            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500))
-        )
-
-        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
+        # Extract soil nutrient levels
+        n = float(data['N'])
+        p = float(data['P'])
+        k = float(data['K'])
+        soil_type = data['soil_type']
+        
+        # Extract rainfall and uncertainty parameters
+        expected_rainfall_mm = float(data.get('expected_rainfall_mm', 600))
         r_unc = float(data.get('rainfall_uncertainty_pct', 0.20))
         p_unc = float(data.get('price_uncertainty_pct', 0.15))
+        
+        # Extract candidate crops (use defaults if not provided)
+        crops = data.get('candidate_crops', ['rice', 'wheat', 'lentil'])
+        
+        # Create environment state for Monte Carlo simulation
+        state = EnvironmentState(
+            n=n,
+            p=p,
+            k=k,
+            soil_type=soil_type,
+            expected_rainfall_mm=expected_rainfall_mm,
+            season_index=int(data.get('season_index', 0))
+        )
 
+        # Fetch REAL market prices from Data.gov.in API
+        market_prices = MarketPriceService.get_multiple_prices(crops)
+        
+        # Run Monte Carlo simulation for risk profiling with real prices
         profiles = monte_carlo.compare_crops_risk_profile(
             state, crops,
             rainfall_uncertainty_pct=r_unc,
-            price_uncertainty_pct=p_unc
+            price_uncertainty_pct=p_unc,
+            crop_prices=market_prices  # Pass real market prices
         )
+        
+        # ============================================================
+        # Format response with field names matching UI expectations
+        # ============================================================
+        response_profiles = []
+        for profile in profiles:
+            crop_name = profile.get('crop', '')
+            
+            # Skip error profiles
+            if 'error' in profile:
+                continue
+            
+            # Extract statistics
+            mean_profit = profile.get('mean_profit', 0)
+            std_profit = profile.get('std_dev', 0)
+            
+            # Calculate Sharpe Ratio (mean/std if std > 0)
+            sharpe_ratio = mean_profit / std_profit if std_profit > 0 else 0
+            
+            # Extract profit statistics (in Rs amounts)
+            # Use field names that MATCH the UI expectations
+            response_profiles.append({
+                'crop': crop_name,
+                'scenarios': profile.get('simulations', 5000),
+                'base_price_per_quintal': round(profile.get('base_price_per_quintal', 3500), 2),
+                
+                # Main profit metrics (NO _rs suffix, NO alternative names)
+                'min_profit': round(profile.get('min_profit', 0), 0),
+                'max_profit': round(profile.get('max_profit', 0), 0),
+                'mean_profit': round(mean_profit, 0),
+                'median_profit': round(profile.get('percentile_50', 0), 0),
+                'std_profit': round(std_profit, 0),  # UI uses 'std_profit'
+                
+                # Risk metrics
+                'percentile_5': round(profile.get('percentile_5', 0), 0),
+                'percentile_25': round(profile.get('percentile_25', 0), 0),
+                'percentile_75': round(profile.get('percentile_75', 0), 0),
+                'percentile_95': round(profile.get('percentile_95', 0), 0),
+                
+                # Risk indicators
+                'prob_loss': round(profile.get('prob_of_loss', 0), 4),  # UI uses 'prob_loss'
+                'sharpe_ratio': round(sharpe_ratio, 2),  # Add Sharpe ratio
+                'risk_adjusted_score': profile.get('risk_adjusted_score', 0),  # Used for scoring
+                'risk_category': profile.get('risk_category', 'MODERATE_RISK')
+            })
 
-        return jsonify({'success': True, 'risk_profiles': profiles}), 200
+        return jsonify({'success': True, 'risk_profiles': response_profiles}), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/planning/seasonal-rotation-plan', methods=['POST'])
 @require_auth
 def seasonal_rotation_plan(current_user):
     """
-    Get optimal multi-season crop rotation from trained Q-Learning agent.
+    Compare all possible 3-crop rotation sequences.
+    
+    Shows the return cost and nutrient depletion for each order so farmer can choose.
     
     POST /api/planning/seasonal-rotation-plan
     Headers: Authorization: Bearer <token>
@@ -1117,31 +1349,206 @@ def seasonal_rotation_plan(current_user):
         "N": 90, "P": 42, "K": 43,
         "soil_type": "loamy",
         "expected_rainfall_mm": 600,
-        "num_seasons": 5
+        "temperature": 25,
+        "humidity": 60,
+        "ph": 6.5,
+        "rainfall": 100
+    }
+    
+    Response: {
+        "success": true,
+        "top_3_crops": ["rice", "wheat", "lentil"],
+        "rotation_sequences": [
+            {
+                "sequence": ["rice", "wheat", "lentil"],
+                "total_profit": 156000,
+                "profit_by_season": [52000, 48000, 56000],
+                "initial_nutrients": {"N": 90, "P": 42, "K": 43},
+                "final_nutrients": {"N": 25, "P": 15, "K": 18},
+                "total_depletion": {"N": 65, "P": 27, "K": 25},
+                "total_depletion_percent": {"N": 72.2, "P": 64.3, "K": 58.1}
+            },
+            ...
+        ]
     }
     """
     try:
         data = request.get_json()
         required = ['N', 'P', 'K', 'soil_type']
         if not all(f in data for f in required):
-            return jsonify({'error': f'Missing required fields: {required}'}), 400
+            return jsonify({'success': False, 'error': f'Missing required fields: {required}'}), 400
+        
+        # Validate soil_type
+        valid_soil_types = ['sandy', 'loamy', 'clay']
+        soil_type = data['soil_type'].lower().strip()
+        if soil_type not in valid_soil_types:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid soil_type: {data["soil_type"]}. Must be one of: {", ".join(valid_soil_types)}'
+            }), 400
 
-        state = EnvironmentState(
+        # Get initial state
+        initial_state = EnvironmentState(
             n=float(data['N']),
             p=float(data['P']),
             k=float(data['K']),
-            soil_type=data['soil_type'],
-            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 500)),
-            season_index=int(data.get('season_index', 0))
+            soil_type=soil_type,
+            expected_rainfall_mm=float(data.get('expected_rainfall_mm', 600)),
+            season_index=int(data.get('season_index', 0)),
+            temperature=float(data.get('temperature', 25)),
+            humidity=float(data.get('humidity', 60))
         )
 
-        num_seasons = int(data.get('num_seasons', 5))
-        plan = q_agent.get_optimal_sequence(state, num_seasons)
-
-        return jsonify({'success': True, 'plan': plan}), 200
+        # ================================================================
+        # Step 1: Get top 3 crops from ensemble model
+        # ================================================================
+        try:
+            features = {
+                'N': float(data['N']),
+                'P': float(data['P']),
+                'K': float(data['K']),
+                'temperature': float(data.get('temperature', 25.0)),
+                'humidity': float(data.get('humidity', 60.0)),
+                'ph': float(data.get('ph', 6.5)),
+                'rainfall': float(data.get('rainfall', 100.0))
+            }
+            
+            ensemble_result = recommender.recommend(**features)
+            top_3_result = ensemble_result.get('top_3_crops', [])
+            top_3_crops = [crop_data['crop'] for crop_data in top_3_result[:3]] if top_3_result else ['rice', 'wheat', 'lentil']
+        except Exception as e:
+            print(f"⚠ Ensemble failed, using defaults: {e}")
+            top_3_crops = ['rice', 'wheat', 'lentil']
+        
+        # ================================================================
+        # Step 2: Generate all permutations (6 possible sequences for 3 crops)
+        # ================================================================
+        all_sequences = list(permutations(top_3_crops))
+        
+        # ================================================================
+        # Step 3: Simulate each sequence
+        # ================================================================
+        rotation_results = []
+        state_simulator = StateTransitionSimulator()
+        
+        for sequence in all_sequences:
+            try:
+                # Get market prices for the crops in sequence
+                crop_prices = MarketPriceService.get_multiple_prices(list(sequence))
+                
+                # Start with initial state
+                current_state = initial_state.copy()
+                initial_nutrients = {
+                    'N': round(current_state.n, 2),
+                    'P': round(current_state.p, 2),
+                    'K': round(current_state.k, 2)
+                }
+                
+                total_profit = 0
+                profit_by_season = []
+                
+                # Simulate each crop in the sequence
+                for idx, crop in enumerate(sequence):
+                    # Get market price for this crop
+                    crop_price = crop_prices.get(crop) if crop_prices else None
+                    
+                    # Transition to next state after planting crop
+                    next_state, reward, details = state_simulator.transition(
+                        state=current_state,
+                        crop_action=crop,
+                        market_price_override=crop_price
+                    )
+                    
+                    total_profit += reward
+                    profit_by_season.append(round(reward, 2))
+                    
+                    # Move to next season/state
+                    current_state = next_state
+                
+                # Calculate final nutrients and depletion
+                final_nutrients = {
+                    'N': round(current_state.n, 2),
+                    'P': round(current_state.p, 2),
+                    'K': round(current_state.k, 2)
+                }
+                
+                total_depletion = {
+                    'N': round(initial_nutrients['N'] - final_nutrients['N'], 2),
+                    'P': round(initial_nutrients['P'] - final_nutrients['P'], 2),
+                    'K': round(initial_nutrients['K'] - final_nutrients['K'], 2)
+                }
+                
+                # Calculate depletion as percentage
+                total_depletion_percent = {
+                    'N': round((total_depletion['N'] / initial_nutrients['N'] * 100) if initial_nutrients['N'] > 0 else 0, 1),
+                    'P': round((total_depletion['P'] / initial_nutrients['P'] * 100) if initial_nutrients['P'] > 0 else 0, 1),
+                    'K': round((total_depletion['K'] / initial_nutrients['K'] * 100) if initial_nutrients['K'] > 0 else 0, 1)
+                }
+                
+                # Get Q-Learning score for this sequence
+                q_score = 50.0  # Default neutral score
+                if q_agent:
+                    try:
+                        q_score = q_agent.score_sequence(initial_state, list(sequence))
+                    except KeyError as e:
+                        # Crop not in Q-agent pool, skip scoring
+                        print(f"⚠ Q-agent missing crop in pool: {e}")
+                    except Exception as e:
+                        print(f"⚠ Could not compute Q-score for {sequence}: {e}")
+                
+                rotation_results.append({
+                    'sequence': list(sequence),
+                    'total_profit': float(total_profit),
+                    'profit_by_season': [float(p) for p in profit_by_season],
+                    'initial_nutrients': {k: float(v) for k, v in initial_nutrients.items()},
+                    'final_nutrients': {k: float(v) for k, v in final_nutrients.items()},
+                    'total_depletion': {k: float(v) for k, v in total_depletion.items()},
+                    'total_depletion_percent': {k: float(v) for k, v in total_depletion_percent.items()},
+                    'q_learning_score': float(q_score)
+                })
+            
+            except Exception as e:
+                print(f"⚠ Error simulating sequence {sequence}: {e}")
+                continue
+        
+        # Check if any sequences succeeded
+        if not rotation_results:
+            return jsonify({
+                'success': False,
+                'error': 'Could not simulate any rotation sequences. Please check your soil type and ensure top crops are compatible.'
+            }), 500
+        
+        # Sort by combined score: 70% profit + 30% Q-learning quality
+        # Normalize profit to 0-100 scale for fair weighting
+        if rotation_results:
+            try:
+                max_profit = max(r['total_profit'] for r in rotation_results)
+                min_profit = min(r['total_profit'] for r in rotation_results)
+                profit_range = max_profit - min_profit if max_profit > min_profit else 1
+                
+                for result in rotation_results:
+                    normalized_profit = ((result['total_profit'] - min_profit) / profit_range * 100) if profit_range > 0 else 50
+                    result['combined_score'] = float((normalized_profit * 0.7) + (result['q_learning_score'] * 0.3))
+                
+                rotation_results.sort(key=lambda x: x['combined_score'], reverse=True)
+            except Exception as e:
+                print(f"⚠ Error computing combined scores: {e}")
+                # Fallback: sort by profit only
+                rotation_results.sort(key=lambda x: x['total_profit'], reverse=True)
+                for result in rotation_results:
+                    result['combined_score'] = float(result['total_profit'])
+        
+        return jsonify({
+            'success': True,
+            'top_3_crops': top_3_crops,
+            'rotation_sequences': rotation_results
+        }), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"ERROR in seasonal_rotation_plan: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/planning/train-q-agent', methods=['POST'])
@@ -1195,7 +1602,7 @@ def train_q_agent_endpoint(current_user):
         }), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/planning/financial-history', methods=['GET'])
@@ -1343,7 +1750,7 @@ def get_financial_history(current_user):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

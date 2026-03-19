@@ -19,7 +19,7 @@ export const Welcome = () => {
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking session...</p>
+          <p className="text-gray-600">Validating Session...</p>
         </div>
       </div>
     );
@@ -33,15 +33,14 @@ export const Welcome = () => {
         <div className="text-center mb-12">
           <div className="text-6xl mb-4">🌱</div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">CropSense</h1>
-          <p className="text-xl text-gray-600">Intelligent Crop & Nutrient Management</p>
+          <p className="text-xl text-gray-600">Smart Crop Management Platform</p>
         </div>
 
         {/* Description */}
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Welcome to CropSense</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Get Started with CropSense</h2>
           <p className="text-gray-600 mb-6">
-            CropSense helps farmers optimize nutrient management and predict crop yields using advanced analytics and real-time
-            weather data. Start managing your crops intelligently today.
+            Optimize nutrient management, monitor field conditions, and make data-driven decisions with real-time weather insights and AI-powered recommendations.
           </p>
 
           {/* Features */}
@@ -52,7 +51,7 @@ export const Welcome = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-gray-700">Nutrient Recommendations</span>
+              <span className="text-gray-700">AI-Powered Recommendations</span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
@@ -60,7 +59,7 @@ export const Welcome = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-gray-700">Real-time Weather Monitoring</span>
+              <span className="text-gray-700">Real-Time Weather Monitoring</span>
             </div>
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
@@ -68,7 +67,7 @@ export const Welcome = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-gray-700">Cycle Management</span>
+              <span className="text-gray-700">Growth Cycle Management</span>
             </div>
           </div>
 
@@ -78,13 +77,13 @@ export const Welcome = () => {
               to="/login"
               className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-lg transition text-center"
             >
-              Login to Your Account
+              Sign In
             </Link>
             <Link
               to="/signup"
               className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-3 px-4 rounded-lg transition text-center"
             >
-              Create New Account
+              Create Account
             </Link>
           </div>
         </div>

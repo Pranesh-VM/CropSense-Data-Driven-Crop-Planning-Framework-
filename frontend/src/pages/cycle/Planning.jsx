@@ -24,13 +24,10 @@ export const Planning = () => {
     P: 42,
     K: 43,
     soilType: 'loamy',
-    expectedRainfall: 600,
-    seasonIndex: 0,
   });
   
   // Selected crops for analysis
   const [selectedCrops, setSelectedCrops] = useState(['rice', 'wheat', 'maize']);
-  const [numSeasons, setNumSeasons] = useState(5);
   
   // Results states
   const [compareResults, setCompareResults] = useState(null);
@@ -60,7 +57,7 @@ export const Planning = () => {
         K: Math.round(activeCycle.current_nutrients.K || 43),
         soilType: activeCycle.soil_type || 'loamy',
       }));
-      toast.info('Nutrients loaded from active cycle');
+      toast.info('Using current season data');
     } else if (cycles.length > 0) {
       const lastCycle = cycles[0];
       if (lastCycle.final_n_kg_ha) {
@@ -71,7 +68,7 @@ export const Planning = () => {
           K: Math.round(parseFloat(lastCycle.final_k_kg_ha) || 43),
           soilType: lastCycle.soil_type || 'loamy',
         }));
-        toast.info('Nutrients loaded from last completed cycle');
+        toast.info('Using data from your last season');
       }
     }
   }, [activeCycleData, historyData]);
@@ -94,24 +91,30 @@ export const Planning = () => {
   };
   
   const handleCompareCrops = async () => {
-    if (selectedCrops.length === 0) {
-      toast.warning('Please select at least one crop');
-      return;
-    }
-    
     setLoadingCompare(true);
     try {
-      const result = await planningService.compareCrops(
+      // Use auto-fetch mode: Ensemble model gets top 3 crops automatically
+      const result = await planningService.compareCropsAutoFetch(
         nutrients.N,
         nutrients.P,
         nutrients.K,
         nutrients.soilType,
-        nutrients.seasonIndex,
-        nutrients.expectedRainfall,
-        selectedCrops
+        6.5, // ph
+        25,  // temperature
+        60,  // humidity
+        100  // rainfall
       );
+      
       setCompareResults(result);
-      toast.success('Crop comparison complete!');
+      
+      // Auto-populate selected crops from results if available
+      if (result.crops && result.crops.length > 0) {
+        const autoSelectedCrops = result.crops.map(opt => opt.crop);
+        setSelectedCrops(autoSelectedCrops);
+        toast.success(`Found ${result.crops.length} recommended crops suitable for your soil`);
+      } else {
+        toast.warning('No crops matched your soil conditions. Try adjusting nutrient levels.');
+      }
     } catch (error) {
       toast.error(handleApiError(error));
     } finally {
@@ -120,10 +123,8 @@ export const Planning = () => {
   };
   
   const handleProfitRiskReport = async () => {
-    if (selectedCrops.length === 0) {
-      toast.warning('Please select at least one crop');
-      return;
-    }
+    // Use crops from previous analysis (auto-fetched top 3)
+    const cropsToAnalyze = selectedCrops.length > 0 ? selectedCrops : ['rice', 'wheat', 'maize'];
     
     setLoadingRisk(true);
     try {
@@ -132,11 +133,11 @@ export const Planning = () => {
         nutrients.P,
         nutrients.K,
         nutrients.soilType,
-        nutrients.expectedRainfall,
-        selectedCrops
+        600, // default rainfall
+        cropsToAnalyze
       );
       setRiskResults(result);
-      toast.success('Risk analysis complete!');
+      toast.success('Risk profile analyzed for your crops');
     } catch (error) {
       toast.error(handleApiError(error));
     } finally {
@@ -152,25 +153,16 @@ export const Planning = () => {
         nutrients.P,
         nutrients.K,
         nutrients.soilType,
-        nutrients.expectedRainfall,
-        nutrients.seasonIndex,
-        numSeasons
+        600, // default rainfall
+        0 // default season index
       );
       setRotationResults(result);
-      toast.success('Rotation plan generated!');
+      toast.success('Compared all crop rotation sequences for your field');
     } catch (error) {
       toast.error(handleApiError(error));
     } finally {
       setLoadingRotation(false);
     }
-  };
-  
-  const toggleCropSelection = (crop) => {
-    setSelectedCrops(prev => 
-      prev.includes(crop) 
-        ? prev.filter(c => c !== crop)
-        : [...prev, crop]
-    );
   };
 
   return (
@@ -191,10 +183,10 @@ export const Planning = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Current Soil Status</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Values auto-loaded from your active cycle or last completed cycle. Adjust if needed.
+            Values auto-filled from your current season or last one. Edit if you've added fertilizer recently.
           </p>
           
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {/* N */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">N (kg/ha)</label>
@@ -238,39 +230,16 @@ export const Planning = () => {
                 ))}
               </select>
             </div>
-            {/* Expected Rainfall */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rainfall (mm)</label>
-              <input
-                type="number"
-                value={nutrients.expectedRainfall}
-                onChange={(e) => setNutrients({...nutrients, expectedRainfall: parseFloat(e.target.value) || 0})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-            </div>
-            {/* Season */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Season</label>
-              <select
-                value={nutrients.seasonIndex}
-                onChange={(e) => setNutrients({...nutrients, seasonIndex: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              >
-                {SEASONS.map((season, idx) => (
-                  <option key={idx} value={idx}>{season}</option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
           {[
-            { id: 'compare', label: 'Compare Crops', icon: '🌾' },
-            { id: 'risk', label: 'Risk Analysis', icon: '📊' },
-            { id: 'rotation', label: 'Rotation Plan', icon: '🔄' },
-            { id: 'history', label: 'Financial History', icon: '💰' },
+            { id: 'compare', label: 'Yield Analysis', icon: '🌾' },
+            { id: 'risk', label: 'Risk Assessment', icon: '📊' },
+            { id: 'rotation', label: 'Rotation Strategy', icon: '🔄' },
+            { id: 'history', label: 'Financial Summary', icon: '💰' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -290,96 +259,104 @@ export const Planning = () => {
         {/* Compare Crops Tab */}
         {activeTab === 'compare' && (
           <div className="space-y-6">
-            {/* Crop Selection */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Crops to Compare</h3>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {CROPS.slice(0, 12).map(crop => (
+            {/* Auto-Analysis Section */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg shadow-md p-6 border border-emerald-200">
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">🎯 Auto-Fetch Top 3 Crops</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    The AI Ensemble Model will automatically identify the 3 best crop options for your current soil conditions. 
+                    We'll predict nutrient depletion over 30 days for each crop to help you make an informed decision.
+                  </p>
                   <button
-                    key={crop}
-                    onClick={() => toggleCropSelection(crop)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                      selectedCrops.includes(crop)
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    onClick={handleCompareCrops}
+                    disabled={loadingCompare}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
                   >
-                    {crop.charAt(0).toUpperCase() + crop.slice(1)}
+                    {loadingCompare ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        Checking crops...
+                      </>
+                    ) : (
+                      <>
+                        <span>✨</span>
+                        Analyze Yield Potential
+                      </>
+                    )}
                   </button>
-                ))}
+                </div>
               </div>
-              <button
-                onClick={handleCompareCrops}
-                disabled={loadingCompare}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50"
-              >
-                {loadingCompare ? 'Analyzing...' : 'Compare Crops (LSTM + Formula)'}
-              </button>
             </div>
             
             {/* Results */}
             {compareResults && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Comparison Results</h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    compareResults.prediction_method === 'lstm_blended' 
-                      ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {compareResults.prediction_method === 'lstm_blended' 
-                      ? '60% LSTM + 40% Formula' 
-                      : 'Formula Only'}
-                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Top 3 Crop Analysis</h3>
+                    <p className="text-sm text-gray-500">30-day nutrient depletion prediction</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-gray-500">
+                      Analyzed: {compareResults.crops?.length || 0} crops
+                    </span>
+                  </div>
                 </div>
                 
-                {/* Results Table */}
+                {/* Results Table - Simplified */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Crop</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Season</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Initial N</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Initial P</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Initial K</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700">Final N</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700">Final P</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700">Final K</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Immediate Reward</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Total Value</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700 bg-red-50">Depletion N</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700 bg-red-50">Depletion P</th>
+                        <th className="text-center py-3 px-4 font-semibold text-gray-700 bg-red-50">Depletion K</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {compareResults.options?.map((opt, idx) => (
+                      {compareResults.crops?.map((opt, idx) => (
                         <tr key={idx} className={`border-b border-gray-100 ${idx === 0 ? 'bg-emerald-50' : ''}`}>
                           <td className="py-3 px-4 font-medium text-gray-900 capitalize">
                             {idx === 0 && <span className="mr-2">🏆</span>}
                             {opt.crop}
                           </td>
-                          <td className="py-3 px-4 text-center text-gray-600 capitalize">{opt.season}</td>
-                          <td className="py-3 px-4 text-center text-blue-600 font-semibold">{opt.final_state?.N?.toFixed(1)}</td>
-                          <td className="py-3 px-4 text-center text-green-600 font-semibold">{opt.final_state?.P?.toFixed(1)}</td>
-                          <td className="py-3 px-4 text-center text-orange-600 font-semibold">{opt.final_state?.K?.toFixed(1)}</td>
-                          <td className="py-3 px-4 text-center text-gray-900">₹{opt.immediate_reward?.toLocaleString()}</td>
-                          <td className="py-3 px-4 text-center text-emerald-600 font-bold">₹{opt.total_value?.toLocaleString()}</td>
+                          <td className="py-3 px-4 text-center text-blue-600">{opt.initial?.N?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center text-green-600">{opt.initial?.P?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center text-orange-600">{opt.initial?.K?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center text-blue-500">{opt.final?.N?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center text-green-500">{opt.final?.P?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center text-orange-500">{opt.final?.K?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center font-semibold text-red-600 bg-red-50">{opt.depletion?.N?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center font-semibold text-red-600 bg-red-50">{opt.depletion?.P?.toFixed(1)}</td>
+                          <td className="py-3 px-4 text-center font-semibold text-red-600 bg-red-50">{opt.depletion?.K?.toFixed(1)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
                 
-                {/* Visual Chart - Nutrient Comparison */}
+                {/* Visual Chart - Depletion Comparison */}
                 <div className="mt-6">
-                  <h4 className="font-semibold text-gray-800 mb-3">Nutrient Depletion Comparison</h4>
+                  <h4 className="font-semibold text-gray-800 mb-3">Nutrient Depletion Comparison (kg/ha)</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {['N', 'P', 'K'].map((nutrient, nIdx) => (
                       <div key={nutrient} className="bg-gray-50 rounded-lg p-4">
                         <p className="text-sm font-medium text-gray-600 mb-2">
-                          {nutrient === 'N' ? 'Nitrogen' : nutrient === 'P' ? 'Phosphorus' : 'Potassium'}
+                          {nutrient === 'N' ? 'Nitrogen Depletion' : nutrient === 'P' ? 'Phosphorus Depletion' : 'Potassium Depletion'}
                         </p>
                         <div className="space-y-2">
-                          {compareResults.options?.map((opt, idx) => {
-                            const initial = nutrients[nutrient];
-                            const final = opt.final_state?.[nutrient] || 0;
-                            const percent = Math.max(0, Math.min(100, (final / initial) * 100));
+                          {compareResults.crops?.map((opt, idx) => {
+                            const depletion = opt.depletion?.[nutrient] || 0;
+                            const maxDepletion = Math.max(...compareResults.crops.map(c => c.depletion?.[nutrient] || 0));
+                            const percent = maxDepletion > 0 ? (depletion / maxDepletion) * 100 : 0;
                             return (
                               <div key={idx} className="flex items-center gap-2">
                                 <span className="w-16 text-xs text-gray-600 capitalize truncate">{opt.crop}</span>
@@ -391,7 +368,7 @@ export const Planning = () => {
                                     style={{ width: `${percent}%` }}
                                   />
                                 </div>
-                                <span className="w-10 text-xs text-gray-600">{final.toFixed(0)}</span>
+                                <span className="w-12 text-xs text-gray-600 text-right">{depletion.toFixed(1)}</span>
                               </div>
                             );
                           })}
@@ -408,32 +385,42 @@ export const Planning = () => {
         {/* Risk Analysis Tab */}
         {activeTab === 'risk' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monte Carlo Risk Analysis</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Simulates 2000 scenarios with varying rainfall and market prices
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg shadow-md p-6 border border-blue-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">📊 Monte Carlo Risk Assessment</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Simulates 2000 scenarios with varying rainfall and market prices to assess profit risk and variability.
               </p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {CROPS.slice(0, 12).map(crop => (
-                  <button
-                    key={crop}
-                    onClick={() => toggleCropSelection(crop)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                      selectedCrops.includes(crop)
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {crop.charAt(0).toUpperCase() + crop.slice(1)}
-                  </button>
-                ))}
-              </div>
+              
+              {selectedCrops.length > 0 ? (
+                <div className="mb-4 p-3 bg-blue-100 border border-blue-300 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900">
+                    Analyzing crops: <span className="font-semibold">{selectedCrops.join(', ')}</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    💡 Start with "Yield Analysis" to see which crops work best, then check their risk profile.
+                  </p>
+                </div>
+              )}
+              
               <button
                 onClick={handleProfitRiskReport}
                 disabled={loadingRisk}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50 flex items-center gap-2"
               >
-                {loadingRisk ? 'Analyzing...' : 'Generate Risk Report'}
+                {loadingRisk ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Analyzing Risks...
+                  </>
+                ) : (
+                  <>
+                    <span>🎲</span>
+                    Analyze Risk Profile
+                  </>
+                )}
               </button>
             </div>
             
@@ -467,39 +454,6 @@ export const Planning = () => {
                             ₹{profile.min_profit?.toLocaleString()} - ₹{profile.max_profit?.toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">5th - 95th %ile:</span>
-                          <span className="font-semibold text-gray-800">
-                            ₹{profile.percentile_5?.toLocaleString()} - ₹{profile.percentile_95?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Loss Probability:</span>
-                          <span className={`font-semibold ${profile.prob_loss > 0.1 ? 'text-red-600' : 'text-green-600'}`}>
-                            {(profile.prob_loss * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Sharpe Ratio:</span>
-                          <span className="font-semibold text-blue-600">{profile.sharpe_ratio?.toFixed(2)}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Risk Score Bar */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                          <span>Risk-Adjusted Score</span>
-                          <span>{(profile.risk_adjusted_score * 100).toFixed(0)}%</span>
-                        </div>
-                        <div className="bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              profile.risk_adjusted_score > 0.8 ? 'bg-emerald-500' :
-                              profile.risk_adjusted_score > 0.6 ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}
-                            style={{ width: `${profile.risk_adjusted_score * 100}%` }}
-                          />
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -513,9 +467,6 @@ export const Planning = () => {
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Crop</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700">Mean Profit</th>
                         <th className="text-center py-3 px-4 font-semibold text-gray-700">Std Dev</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Loss Prob</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Sharpe</th>
-                        <th className="text-center py-3 px-4 font-semibold text-gray-700">Risk Score</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -527,22 +478,6 @@ export const Planning = () => {
                           </td>
                           <td className="py-3 px-4 text-center text-gray-600">
                             ±₹{profile.std_profit?.toLocaleString()}
-                          </td>
-                          <td className={`py-3 px-4 text-center font-semibold ${
-                            profile.prob_loss > 0.1 ? 'text-red-600' : 'text-green-600'
-                          }`}>
-                            {(profile.prob_loss * 100).toFixed(1)}%
-                          </td>
-                          <td className="py-3 px-4 text-center text-blue-600 font-semibold">
-                            {profile.sharpe_ratio?.toFixed(2)}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              profile.risk_adjusted_score > 0.8 ? 'bg-emerald-100 text-emerald-800' :
-                              profile.risk_adjusted_score > 0.6 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {(profile.risk_adjusted_score * 100).toFixed(0)}%
-                            </span>
                           </td>
                         </tr>
                       ))}
@@ -558,123 +493,161 @@ export const Planning = () => {
         {activeTab === 'rotation' && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Q-Learning Rotation Planner</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Crop Rotation Optimizer</h3>
               <p className="text-sm text-gray-500 mb-4">
-                AI-optimized crop sequence for maximum long-term profit and soil health
+                Compare all possible 3-crop rotation sequences. See profit returns and nutrient depletion for each order.
               </p>
-              
-              <div className="flex items-center gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Seasons</label>
-                  <select
-                    value={numSeasons}
-                    onChange={(e) => setNumSeasons(parseInt(e.target.value))}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    {[3, 4, 5, 6, 7, 8].map(n => (
-                      <option key={n} value={n}>{n} Seasons</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
               
               <button
                 onClick={handleSeasonalPlan}
                 disabled={loadingRotation}
                 className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition disabled:opacity-50"
               >
-                {loadingRotation ? 'Planning...' : 'Generate Optimal Rotation'}
+                {loadingRotation ? 'Analyzing Rotations...' : 'Analyze Rotation Plans'}
               </button>
             </div>
+
+            {loadingRotation && (
+              <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500 mx-auto mb-3"></div>
+                <p className="text-gray-600">Simulating crop rotation sequences...</p>
+              </div>
+            )}
             
-            {rotationResults && rotationResults.plan && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Optimal Rotation Plan</h3>
-                  <div className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg font-semibold">
-                    Total Reward: ₹{rotationResults.plan.total_reward?.toLocaleString()}
+            {rotationResults && rotationResults.rotation_sequences && rotationResults.rotation_sequences.length > 0 && (
+              <div className="space-y-4">
+                {/* Top Crops Info */}
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Top Recommended Crops:</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {rotationResults.top_3_crops?.map((crop, idx) => (
+                      <span key={idx} className="bg-white px-3 py-1 rounded-full text-sm font-semibold text-purple-600 border border-purple-200">
+                        {idx + 1}. {crop}
+                      </span>
+                    ))}
                   </div>
                 </div>
-                
-                {/* Rotation Timeline */}
-                <div className="relative">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                  
-                  <div className="space-y-6">
-                    {rotationResults.plan.seasons?.map((season, idx) => (
-                      <div key={idx} className="relative pl-12">
-                        {/* Timeline Dot */}
-                        <div 
-                          className="absolute left-2 top-1 w-5 h-5 rounded-full border-2 border-white"
-                          style={{ backgroundColor: SEASON_COLORS[idx % 4] }}
-                        />
-                        
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span 
-                                className="px-3 py-1 rounded-full text-white text-xs font-semibold"
-                                style={{ backgroundColor: SEASON_COLORS[idx % 4] }}
-                              >
-                                Season {season.season_num}
-                              </span>
-                              <span className="text-sm text-gray-500 capitalize">{season.season_name}</span>
-                            </div>
-                            <span className="font-semibold text-emerald-600">₹{season.reward?.toLocaleString()}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-6">
+
+                {/* Rotation Sequences Comparison */}
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6 border-b border-gray-200">
+                    <h4 className="text-lg font-semibold text-gray-900">Rotation Sequences ({rotationResults.rotation_sequences.length} options)</h4>
+                  </div>
+
+                  <div className="space-y-4 p-6">
+                    {rotationResults.rotation_sequences.map((result, idx) => (
+                      <div key={idx} className={`rounded-lg border-2 p-4 ${
+                        idx === 0 ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-white'
+                      }`}>
+                        {/* Sequence Title */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl font-bold text-gray-600">#{idx + 1}</span>
                             <div>
-                              <p className="text-2xl font-bold text-gray-900 capitalize">{season.crop}</p>
-                            </div>
-                            
-                            <div className="flex-1 grid grid-cols-3 gap-4 text-center">
-                              <div className="bg-white rounded p-2">
-                                <p className="text-xs text-gray-500">Start NPK</p>
-                                <p className="font-semibold text-sm">
-                                  {season.start_state?.N?.toFixed(0)} / {season.start_state?.P?.toFixed(0)} / {season.start_state?.K?.toFixed(0)}
-                                </p>
+                              <div className="flex items-center gap-2">
+                                {result.sequence.map((crop, cidx) => (
+                                  <div key={cidx} className="flex items-center">
+                                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold capitalize">
+                                      {crop}
+                                    </span>
+                                    {cidx < result.sequence.length - 1 && (
+                                      <span className="mx-2 text-gray-400 text-xl">→</span>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
-                              <div className="text-2xl text-gray-400 flex items-center justify-center">→</div>
-                              <div className="bg-white rounded p-2">
-                                <p className="text-xs text-gray-500">End NPK</p>
-                                <p className="font-semibold text-sm">
-                                  {season.end_state?.N?.toFixed(0)} / {season.end_state?.P?.toFixed(0)} / {season.end_state?.K?.toFixed(0)}
-                                </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Season 1 → Season 2 → Season 3
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            {idx === 0 && <span className="text-emerald-600 text-lg font-bold">🏆 Top Ranked</span>}
+                            <div className="flex gap-2">
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Q-Score</p>
+                                <p className="font-bold text-sm text-blue-600">{result.q_learning_score || 50}/100</p>
                               </div>
                             </div>
+                          </div>
+                        </div>
+
+                        {/* Profit Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 bg-white bg-opacity-50 rounded-lg">
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Total Profit (3 seasons)</p>
+                            <p className="text-2xl font-bold text-emerald-600">
+                              ₹{result.total_profit?.toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Profit by Season</p>
+                            <div className="flex gap-2">
+                              {result.profit_by_season?.map((profit, pidx) => (
+                                <div key={pidx} className="flex-1 bg-emerald-100 rounded px-2 py-1 text-center">
+                                  <p className="text-xs text-emerald-700">S{pidx + 1}</p>
+                                  <p className="font-semibold text-emerald-800 text-sm">
+                                    ₹{(profit / 1000).toFixed(0)}K
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nutrient Depletion Info */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="bg-blue-50 rounded-lg p-3 text-center">
+                            <p className="text-xs text-blue-600 font-semibold mb-1">Nitrogen (N)</p>
+                            <p className="text-sm text-gray-600">
+                              {result.initial_nutrients?.N} → {result.final_nutrients?.N}
+                            </p>
+                            <p className="text-lg font-bold text-red-600">
+                              -{result.total_depletion?.N}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ({result.total_depletion_percent?.N}% depleted)
+                            </p>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-3 text-center">
+                            <p className="text-xs text-green-600 font-semibold mb-1">Phosphorus (P)</p>
+                            <p className="text-sm text-gray-600">
+                              {result.initial_nutrients?.P} → {result.final_nutrients?.P}
+                            </p>
+                            <p className="text-lg font-bold text-red-600">
+                              -{result.total_depletion?.P}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ({result.total_depletion_percent?.P}% depleted)
+                            </p>
+                          </div>
+                          <div className="bg-yellow-50 rounded-lg p-3 text-center">
+                            <p className="text-xs text-yellow-600 font-semibold mb-1">Potassium (K)</p>
+                            <p className="text-sm text-gray-600">
+                              {result.initial_nutrients?.K} → {result.final_nutrients?.K}
+                            </p>
+                            <p className="text-lg font-bold text-red-600">
+                              -{result.total_depletion?.K}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ({result.total_depletion_percent?.K}% depleted)
+                            </p>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-                
-                {/* Summary */}
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <h4 className="font-semibold text-gray-800 mb-3">Rotation Summary</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-blue-600">Total Seasons</p>
-                      <p className="text-2xl font-bold text-blue-800">{rotationResults.plan.seasons?.length}</p>
-                    </div>
-                    <div className="bg-emerald-50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-emerald-600">Total Profit</p>
-                      <p className="text-2xl font-bold text-emerald-800">₹{rotationResults.plan.total_reward?.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-purple-50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-purple-600">Avg/Season</p>
-                      <p className="text-2xl font-bold text-purple-800">
-                        ₹{Math.round(rotationResults.plan.total_reward / (rotationResults.plan.seasons?.length || 1)).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-4 text-center">
-                      <p className="text-sm text-orange-600">Unique Crops</p>
-                      <p className="text-2xl font-bold text-orange-800">
-                        {new Set(rotationResults.plan.seasons?.map(s => s.crop)).size}
-                      </p>
-                    </div>
-                  </div>
+
+                {/* Recommendation */}
+                <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-lg p-4 border border-emerald-200">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">💡 Recommendation:</p>
+                  <p className="text-sm text-gray-600">
+                    Sequence #1 ({rotationResults.rotation_sequences[0].sequence.join(' → ')}) ranks best based on{' '}
+                    <span className="font-bold">70% profit</span> + <span className="font-bold">30% soil health</span>.{' '}
+                    Profit: <span className="font-bold text-emerald-600">₹{rotationResults.rotation_sequences[0].total_profit?.toLocaleString()}</span>,{' '}
+                    Q-Learning Score: <span className="font-bold text-blue-600">{rotationResults.rotation_sequences[0].q_learning_score || 50}/100</span>
+                  </p>
                 </div>
               </div>
             )}

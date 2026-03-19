@@ -12,7 +12,7 @@ export const CycleHistory = () => {
       <div className="min-h-screen bg-gray-50 p-4 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading cycle history...</p>
+          <p className="text-gray-600">Loading season history...</p>
         </div>
       </div>
     );
@@ -23,9 +23,9 @@ export const CycleHistory = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">📈 Cycle History</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">📈 Season History</h1>
           <p className="text-gray-600 mt-2">
-            View all your crop cycles ({historyData?.total || 0} total)
+            View all your growing seasons ({historyData?.total || 0} total)
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export const CycleHistory = () => {
                             {cycle.crop_name}
                           </h3>
                           <span className="text-gray-500 text-sm">
-                            Cycle #{cycle.cycle_number}
+                            Season #{cycle.cycle_number}
                           </span>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -214,9 +214,9 @@ export const CycleHistory = () => {
             ) : (
               <div className="bg-white rounded-lg shadow-md p-12 text-center">
                 <p className="text-5xl mb-4">📋</p>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">No Cycles Yet</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">No Seasons Yet</h2>
                 <p className="text-gray-600">
-                  You haven't started any crop cycles yet. Start a new cycle to begin tracking.
+                  You haven't started any growing seasons yet. Start a new season to begin tracking.
                 </p>
               </div>
             )}
@@ -227,7 +227,7 @@ export const CycleHistory = () => {
             {/* Summary Stats */}
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-24 space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-gray-600 mb-2">TOTAL CYCLES</h3>
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">TOTAL SEASONS</h3>
                 <p className="text-4xl font-bold text-gray-900">{historyData?.total || cycles.length}</p>
               </div>
 
@@ -263,7 +263,7 @@ export const CycleHistory = () => {
               {/* Top Crops */}
               {cycles.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-600 mb-3">TOP CROPS</h3>
+                  <h3 className="text-sm font-semibold text-gray-600 mb-3">Top Performing Crops</h3>
                   <div className="space-y-2">
                     {getTopCrops(cycles).map((crop, idx) => (
                       <div key={idx} className="flex justify-between items-center">
