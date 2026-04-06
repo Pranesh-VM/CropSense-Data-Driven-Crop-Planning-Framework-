@@ -89,15 +89,15 @@ class MonteCarloSimulator:
         Returns:
             {
                 'crop': 'rice',
-                'mean_profit': 52000.0,
-                'min_profit': 28000.0,
-                'max_profit': 81000.0,
-                'std_dev': 11000.0,
-                'prob_of_loss': 0.08,           # 8% chance of negative reward
-                'percentile_5': 32000.0,        # worst-case (5th pct)
-                'percentile_25': 44000.0,
-                'percentile_75': 61000.0,
-                'percentile_95': 73000.0,       # best-case (95th pct)
+                'mean_profit': 0.52,               # Scaled down (0.52 lakhs = ₹52,000)
+                'min_profit': 0.28,
+                'max_profit': 0.81,
+                'std_dev': 0.11,
+                'prob_of_loss': 0.08,             # 8% chance of negative reward
+                'percentile_5': 0.32,             # worst-case (5th pct)
+                'percentile_25': 0.44,
+                'percentile_75': 0.61,
+                'percentile_95': 0.73,            # best-case (95th pct)
                 'simulations': 5000
             }
         """
@@ -168,18 +168,21 @@ class MonteCarloSimulator:
         num_losses = np.sum(profits_arr < 0)
         prob_of_loss = num_losses / len(profits_arr)
         
+        # Multiply by factor to scale down (1 lakh = 100,000 rupees)
+        SCALE_FACTOR = 0.1
+        
         return {
             'crop': crop_lower,
-            'mean_profit': round(mean_profit, 0),
-            'min_profit': round(float(np.min(profits_arr)), 0),
-            'max_profit': round(float(np.max(profits_arr)), 0),
-            'std_dev': round(std_dev, 0),
+            'mean_profit': round(mean_profit * SCALE_FACTOR, 2),
+            'min_profit': round(float(np.min(profits_arr)) * SCALE_FACTOR, 2),
+            'max_profit': round(float(np.max(profits_arr)) * SCALE_FACTOR, 2),
+            'std_dev': round(std_dev * SCALE_FACTOR, 2),
             'prob_of_loss': round(prob_of_loss, 4),
-            'percentile_5': round(float(np.percentile(profits_arr, 5)), 0),
-            'percentile_25': round(float(np.percentile(profits_arr, 25)), 0),
-            'percentile_50': round(float(np.percentile(profits_arr, 50)), 0),  # median
-            'percentile_75': round(float(np.percentile(profits_arr, 75)), 0),
-            'percentile_95': round(float(np.percentile(profits_arr, 95)), 0),
+            'percentile_5': round(float(np.percentile(profits_arr, 5)) * SCALE_FACTOR, 2),
+            'percentile_25': round(float(np.percentile(profits_arr, 25)) * SCALE_FACTOR, 2),
+            'percentile_50': round(float(np.percentile(profits_arr, 50)) * SCALE_FACTOR, 2),  # median
+            'percentile_75': round(float(np.percentile(profits_arr, 75)) * SCALE_FACTOR, 2),
+            'percentile_95': round(float(np.percentile(profits_arr, 95)) * SCALE_FACTOR, 2),
             'simulations': len(profits)
         }
     
@@ -207,32 +210,32 @@ class MonteCarloSimulator:
             crop_prices: Optional dict of crop prices (e.g., {'rice': 2150, 'wheat': 2300})
         
         Returns:
-            List sorted by risk_adjusted_score (descending):
+            List sorted by risk_adjusted_score (descending) - scaled values:
             [
                 {
                     'crop': 'lentil',
-                    'mean_profit': 41000,
-                    'std_dev': 8000,
+                    'mean_profit': 0.41,               # Scaled down (0.41 lakhs)
+                    'std_dev': 0.08,
                     'prob_of_loss': 0.04,
-                    'risk_adjusted_score': 33000,   ← RECOMMENDED (low risk)
+                    'risk_adjusted_score': 0.33,       ← RECOMMENDED (low risk)
                     'base_price_per_quintal': 4500,
                     ...
                 },
                 {
                     'crop': 'wheat',
-                    'mean_profit': 44000,
-                    'std_dev': 12000,
+                    'mean_profit': 0.44,
+                    'std_dev': 0.12,
                     'prob_of_loss': 0.09,
-                    'risk_adjusted_score': 32000,
+                    'risk_adjusted_score': 0.32,
                     'base_price_per_quintal': 2300,
                     ...
                 },
                 {
                     'crop': 'rice',
-                    'mean_profit': 52000,
-                    'std_dev': 18000,
+                    'mean_profit': 0.52,
+                    'std_dev': 0.18,
                     'prob_of_loss': 0.14,
-                    'risk_adjusted_score': 34000,   ← High reward but risky
+                    'risk_adjusted_score': 0.34,       ← High reward but risky
                     'base_price_per_quintal': 2150,
                     ...
                 }
@@ -262,11 +265,11 @@ class MonteCarloSimulator:
             if crop_prices and crop in crop_prices:
                 result['base_price_per_quintal'] = crop_prices[crop]
             
-            # Calculate risk-adjusted score
+            # Calculate risk-adjusted score (already scaled down from simulate_crop_profit)
             # Simple: mean - 1*std_dev (Sharpe-like ratio without risk-free rate)
             risk_adjusted_score = result['mean_profit'] - result['std_dev']
             
-            result['risk_adjusted_score'] = round(risk_adjusted_score, 0)
+            result['risk_adjusted_score'] = round(risk_adjusted_score, 2)
             
             # Add risk category
             if result['prob_of_loss'] < 0.05:
@@ -307,13 +310,13 @@ class MonteCarloSimulator:
         Returns:
             {
                 'sequence': ['rice', 'lentil', 'wheat'],
-                'total_mean_profit': 125000.0,
-                'total_std_dev': 22000.0,
+                'total_mean_profit': 1.25,          # Scaled down (1.25 lakhs)
+                'total_std_dev': 0.22,
                 'prob_of_total_loss': 0.02,
                 'season_breakdown': [
-                    {'season': 1, 'crop': 'rice', 'mean_profit': 48000, ...},
-                    {'season': 2, 'crop': 'lentil', 'mean_profit': 35000, ...},
-                    {'season': 3, 'crop': 'wheat', 'mean_profit': 42000, ...}
+                    {'season': 1, 'crop': 'rice', 'mean_profit': 0.48, ...},
+                    {'season': 2, 'crop': 'lentil', 'mean_profit': 0.35, ...},
+                    {'season': 3, 'crop': 'wheat', 'mean_profit': 0.42, ...}
                 ],
                 'simulations': 5000
             }
@@ -366,6 +369,9 @@ class MonteCarloSimulator:
         # Calculate statistics
         total_arr = np.array(total_profits)
         
+        # Multiply by factor to scale down (1 lakh = 100,000 rupees)
+        SCALE_FACTOR = 0.00001
+        
         # Season breakdown
         season_breakdown = []
         for i, crop in enumerate(crop_sequence):
@@ -373,21 +379,21 @@ class MonteCarloSimulator:
             season_breakdown.append({
                 'season': i + 1,
                 'crop': crop.lower(),
-                'mean_profit': round(float(np.mean(season_arr)), 0),
-                'std_dev': round(float(np.std(season_arr)), 0),
+                'mean_profit': round(float(np.mean(season_arr)) * SCALE_FACTOR, 2),
+                'std_dev': round(float(np.std(season_arr)) * SCALE_FACTOR, 2),
                 'prob_of_loss': round(float(np.sum(season_arr < 0) / len(season_arr)), 4)
             })
         
         return {
             'sequence': [c.lower() for c in crop_sequence],
             'num_seasons': len(crop_sequence),
-            'total_mean_profit': round(float(np.mean(total_arr)), 0),
-            'total_std_dev': round(float(np.std(total_arr)), 0),
-            'total_min_profit': round(float(np.min(total_arr)), 0),
-            'total_max_profit': round(float(np.max(total_arr)), 0),
+            'total_mean_profit': round(float(np.mean(total_arr)) * SCALE_FACTOR, 2),
+            'total_std_dev': round(float(np.std(total_arr)) * SCALE_FACTOR, 2),
+            'total_min_profit': round(float(np.min(total_arr)) * SCALE_FACTOR, 2),
+            'total_max_profit': round(float(np.max(total_arr)) * SCALE_FACTOR, 2),
             'prob_of_total_loss': round(float(np.sum(total_arr < 0) / len(total_arr)), 4),
-            'percentile_5': round(float(np.percentile(total_arr, 5)), 0),
-            'percentile_95': round(float(np.percentile(total_arr, 95)), 0),
+            'percentile_5': round(float(np.percentile(total_arr, 5)) * SCALE_FACTOR, 2),
+            'percentile_95': round(float(np.percentile(total_arr, 95)) * SCALE_FACTOR, 2),
             'season_breakdown': season_breakdown,
             'simulations': len(total_profits)
         }
@@ -412,11 +418,11 @@ class MonteCarloSimulator:
         
         Returns:
             [
-                {'variation': 0.6, 'mean_profit': 35000, 'std_dev': 8000, ...},
-                {'variation': 0.8, 'mean_profit': 42000, 'std_dev': 9000, ...},
-                {'variation': 1.0, 'mean_profit': 48000, 'std_dev': 10000, ...},
-                {'variation': 1.2, 'mean_profit': 45000, 'std_dev': 12000, ...},
-                {'variation': 1.4, 'mean_profit': 40000, 'std_dev': 15000, ...},
+                {'variation': 0.6, 'mean_profit': 0.35, 'std_dev': 0.08, ...},  # Scaled
+                {'variation': 0.8, 'mean_profit': 0.42, 'std_dev': 0.09, ...},
+                {'variation': 1.0, 'mean_profit': 0.48, 'std_dev': 0.10, ...},
+                {'variation': 1.2, 'mean_profit': 0.45, 'std_dev': 0.12, ...},
+                {'variation': 1.4, 'mean_profit': 0.40, 'std_dev': 0.15, ...},
             ]
         """
         if variations is None:
@@ -480,21 +486,21 @@ if __name__ == '__main__':
     # Test 1: Single crop simulation
     print("\n--- Test 1: Single Crop Simulation (Rice) ---")
     result = mc.simulate_crop_profit(state, 'rice')
-    print(f"Mean profit: ₹{result['mean_profit']:,.0f}")
-    print(f"Std dev: ₹{result['std_dev']:,.0f}")
+    print(f"Mean profit: ₹{result['mean_profit']:.2f} Lakhs")
+    print(f"Std dev: ₹{result['std_dev']:.2f} Lakhs")
     print(f"Prob of loss: {result['prob_of_loss']:.1%}")
-    print(f"5th percentile: ₹{result['percentile_5']:,.0f}")
-    print(f"95th percentile: ₹{result['percentile_95']:,.0f}")
+    print(f"5th percentile: ₹{result['percentile_5']:.2f} Lakhs")
+    print(f"95th percentile: ₹{result['percentile_95']:.2f} Lakhs")
     
     # Test 2: Compare crops
     print("\n--- Test 2: Compare Crops Risk Profile ---")
     profiles = mc.compare_crops_risk_profile(state, ['rice', 'lentil', 'wheat', 'maize'])
     for p in profiles:
         if 'error' not in p:
-            print(f"  {p['crop']:10} mean=₹{p['mean_profit']:>7,.0f}  "
-                  f"std=₹{p['std_dev']:>6,.0f}  "
+            print(f"  {p['crop']:10} mean=₹{p['mean_profit']:>6.2f}L  "
+                  f"std=₹{p['std_dev']:>5.2f}L  "
                   f"prob_loss={p['prob_of_loss']:>5.1%}  "
-                  f"risk_adj=₹{p['risk_adjusted_score']:>7,.0f}  "
+                  f"risk_adj=₹{p['risk_adjusted_score']:>6.2f}L  "
                   f"[{p['risk_category']}]")
     
     # Test 3: Multi-season simulation
@@ -503,12 +509,12 @@ if __name__ == '__main__':
         state, ['rice', 'lentil', 'wheat']
     )
     print(f"Sequence: {' → '.join(multi['sequence'])}")
-    print(f"Total mean profit: ₹{multi['total_mean_profit']:,.0f}")
-    print(f"Total std dev: ₹{multi['total_std_dev']:,.0f}")
+    print(f"Total mean profit: ₹{multi['total_mean_profit']:.2f} Lakhs")
+    print(f"Total std dev: ₹{multi['total_std_dev']:.2f} Lakhs")
     print(f"Prob of total loss: {multi['prob_of_total_loss']:.1%}")
-    print(f"5th-95th percentile: ₹{multi['percentile_5']:,.0f} – ₹{multi['percentile_95']:,.0f}")
+    print(f"5th-95th percentile: ₹{multi['percentile_5']:.2f}L – ₹{multi['percentile_95']:.2f}L")
     print("Season breakdown:")
     for s in multi['season_breakdown']:
-        print(f"  S{s['season']}: {s['crop']:10} mean=₹{s['mean_profit']:>7,.0f}")
+        print(f"  S{s['season']}: {s['crop']:10} mean=₹{s['mean_profit']:>5.2f}L")
     
     print("\n✓ All tests passed!")

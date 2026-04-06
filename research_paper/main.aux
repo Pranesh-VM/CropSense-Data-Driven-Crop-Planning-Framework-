@@ -1,0 +1,190 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Motivation}{2}{section.2}\protected@file@percent }
+\newlabel{sec:motivation}{{II}{2}{Motivation}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Challenge 1: Physical Soil Dynamics}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Challenge 2: Temporal and Multi-Season Optimization}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Challenge 3: Economic Risk and Uncertainty}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}The Integration Gap}{2}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-E}}Why CropSense Matters}{2}{subsection.2.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Related Work}{2}{section.3}\protected@file@percent }
+\newlabel{sec:related}{{III}{2}{Related Work}{section.3}{}}
+\citation{CropDataset}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Research Gaps and CropSense}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}System Architecture}{3}{section.4}\protected@file@percent }
+\newlabel{sec:arch}{{IV}{3}{System Architecture}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Architecture Description}{3}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Module 1: Data Acquisition and Preparation}{3}{section.5}\protected@file@percent }
+\newlabel{sec:module1}{{V}{3}{Module 1: Data Acquisition and Preparation}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Dataset Description}{3}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Preprocessing Algorithms}{3}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-B}1}Z-Score Normalisation}{3}{subsubsection.5.2.1}\protected@file@percent }
+\newlabel{eq:zscore}{{1}{3}{Z-Score Normalisation}{equation.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces CropSense System Architecture. The framework integrates six modules connected through six labelled data flows from raw data ingestion to risk-adjusted decision output with a continuous feedback loop.}}{4}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:arch}{{1}{4}{CropSense System Architecture. The framework integrates six modules connected through six labelled data flows from raw data ingestion to risk-adjusted decision output with a continuous feedback loop}{figure.caption.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Input Feature Descriptions}}{4}{table.caption.2}\protected@file@percent }
+\newlabel{tab:features}{{I}{4}{Input Feature Descriptions}{table.caption.2}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Feature Standardisation}}{4}{algorithm.1}\protected@file@percent }
+\newlabel{alg:standardize}{{1}{4}{Feature Standardisation}{algorithm.1}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Label Encoding}}{4}{algorithm.2}\protected@file@percent }
+\newlabel{alg:encode}{{2}{4}{Label Encoding}{algorithm.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-B}2}Label Encoding}{4}{algorithm.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {V-B}3}Stratified Train-Test Split (80/20)}{4}{algorithm.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Module 2: Ensemble Crop Prediction}{4}{section.6}\protected@file@percent }
+\newlabel{sec:module2}{{VI}{4}{Module 2: Ensemble Crop Prediction}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Base Models and Hyperparameters}{4}{subsection.6.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces Stratified Train-Test Split}}{5}{algorithm.3}\protected@file@percent }
+\newlabel{alg:split}{{3}{5}{Stratified Train-Test Split}{algorithm.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}Grid Search Hyperparameter Optimisation}{5}{subsection.6.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Grid search heatmap for XGBoost hyperparameter optimisation. The heatmap shows validation accuracy as a function of \texttt  {max\_depth} (3–9) and \texttt  {learning\_rate} (0.01–0.3). Optimal performance is achieved at \texttt  {max\_depth}=6 and \texttt  {learning\_rate}=0.1, which were subsequently used for the XGBoost model in the ensemble.}}{5}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:grid_search}{{2}{5}{Grid search heatmap for XGBoost hyperparameter optimisation. The heatmap shows validation accuracy as a function of \texttt {max\_depth} (3–9) and \texttt {learning\_rate} (0.01–0.3). Optimal performance is achieved at \texttt {max\_depth}=6 and \texttt {learning\_rate}=0.1, which were subsequently used for the XGBoost model in the ensemble}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Crop Class Mapping}{5}{subsection.6.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Crop Class Index Mapping (22 Classes)}}{5}{table.caption.4}\protected@file@percent }
+\newlabel{tab:cropmap}{{II}{5}{Crop Class Index Mapping (22 Classes)}{table.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-D}}Soft-Voting Ensemble}{5}{subsection.6.4}\protected@file@percent }
+\newlabel{eq:softvote}{{2}{5}{Soft-Voting Ensemble}{equation.2}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {4}{\ignorespaces Soft-Voting Ensemble Classifier}}{5}{algorithm.4}\protected@file@percent }
+\newlabel{alg:ensemble}{{4}{5}{Soft-Voting Ensemble Classifier}{algorithm.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-E}}Confidence Level Assignment}{5}{subsection.6.5}\protected@file@percent }
+\newlabel{eq:confidence}{{3}{5}{Confidence Level Assignment}{equation.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-F}}Ensemble Classification Performance}{5}{subsection.6.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Module 3: Rainfall-Induced Nutrient Depletion Model (RINDM)}{5}{section.7}\protected@file@percent }
+\newlabel{sec:module3}{{VII}{5}{Module 3: Rainfall-Induced Nutrient Depletion Model (RINDM)}{section.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}Motivation}{5}{subsection.7.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Classification report for the soft-voting ensemble model on the held-out test set (440 samples, 22 classes). Per-class precision, recall, and F1-score are shown for all crop types. The macro-average F1-score of 0.995 and weighted-average F1-score of 0.995 demonstrate excellent generalisation across all crop categories. Notably, crops with distinct nutrient requirements (rice, maize, legumes) achieve perfect or near-perfect scores, while botanically similar crops (e.g., different bean varieties) show marginally lower but still excellent performance.}}{6}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:classification_report}{{3}{6}{Classification report for the soft-voting ensemble model on the held-out test set (440 samples, 22 classes). Per-class precision, recall, and F1-score are shown for all crop types. The macro-average F1-score of 0.995 and weighted-average F1-score of 0.995 demonstrate excellent generalisation across all crop categories. Notably, crops with distinct nutrient requirements (rice, maize, legumes) achieve perfect or near-perfect scores, while botanically similar crops (e.g., different bean varieties) show marginally lower but still excellent performance}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}RINDM Formulation}{6}{subsection.7.2}\protected@file@percent }
+\newlabel{eq:leach}{{4}{6}{RINDM Formulation}{equation.4}{}}
+\newlabel{eq:runoff}{{5}{6}{RINDM Formulation}{equation.5}{}}
+\newlabel{eq:ltotal}{{6}{6}{RINDM Formulation}{equation.6}{}}
+\newlabel{eq:update}{{7}{6}{RINDM Formulation}{equation.7}{}}
+\newlabel{eq:fr}{{8}{6}{RINDM Formulation}{equation.8}{}}
+\newlabel{eq:fi}{{9}{6}{RINDM Formulation}{equation.9}{}}
+\newlabel{eq:fs}{{10}{6}{RINDM Formulation}{equation.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Nutrient Loss Coefficient Tables}{6}{subsection.7.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Leaching Coefficients $\alpha _L$ by Soil Type}}{6}{table.caption.6}\protected@file@percent }
+\newlabel{tab:leach}{{III}{6}{Leaching Coefficients $\alpha _L$ by Soil Type}{table.caption.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Runoff Coefficients $\alpha _R$ by Soil Type}}{6}{table.caption.7}\protected@file@percent }
+\newlabel{tab:runoff}{{IV}{6}{Runoff Coefficients $\alpha _R$ by Soil Type}{table.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}RINDM Analysis Results}{6}{subsection.7.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces RINDM nutrient loss analysis: Total N–P–K loss (kg/ha) as a function of cumulative seasonal rainfall for sandy, loamy, and clay soil types. Sandy soils exhibit the highest leaching losses for nitrogen (approximately 18\% of initial N at 1000 mm rainfall) due to their high hydraulic conductivity. Clay soils show greater runoff losses, particularly for phosphorus (approximately 12\% at high intensity), as the low infiltration rate promotes surface flow. Loamy soils provide the best balance, with moderate losses across all nutrients. This analysis validates the RINDM coefficients and demonstrates the importance of soil-specific nutrient management.}}{6}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:loss_vs_nutrient}{{4}{6}{RINDM nutrient loss analysis: Total N–P–K loss (kg/ha) as a function of cumulative seasonal rainfall for sandy, loamy, and clay soil types. Sandy soils exhibit the highest leaching losses for nitrogen (approximately 18\% of initial N at 1000 mm rainfall) due to their high hydraulic conductivity. Clay soils show greater runoff losses, particularly for phosphorus (approximately 12\% at high intensity), as the low infiltration rate promotes surface flow. Loamy soils provide the best balance, with moderate losses across all nutrients. This analysis validates the RINDM coefficients and demonstrates the importance of soil-specific nutrient management}{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-E}}RINDM Algorithms}{6}{subsection.7.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Module 4: Temporal Meta Modeling}{6}{section.8}\protected@file@percent }
+\newlabel{sec:module4}{{VIII}{6}{Module 4: Temporal Meta Modeling}{section.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-A}}Overview}{6}{subsection.8.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {5}{\ignorespaces Soil Type Classification}}{7}{algorithm.5}\protected@file@percent }
+\newlabel{alg:soiltype}{{5}{7}{Soil Type Classification}{algorithm.5}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {6}{\ignorespaces Nutrient Loss Calculation (Single Rainfall Event)}}{7}{algorithm.6}\protected@file@percent }
+\newlabel{alg:nutrientloss}{{6}{7}{Nutrient Loss Calculation (Single Rainfall Event)}{algorithm.6}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {7}{\ignorespaces Cumulative Nutrient Depletion (Multi-Event)}}{7}{algorithm.7}\protected@file@percent }
+\newlabel{alg:cumulative}{{7}{7}{Cumulative Nutrient Depletion (Multi-Event)}{algorithm.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Total nutrient loss as a function of seasonal rainfall for different soil types. The relationship is approximately linear for loamy soils (R² = 0.94) but exhibits threshold behaviour for clay soils, where losses increase rapidly beyond 800 mm seasonal rainfall due to saturation-excess runoff generation. Sandy soils show intermediate sensitivity with a convex response curve, reflecting the dominance of leaching at low intensities and runoff at high intensities. These findings inform the RINDM's real-time nutrient update logic.}}{7}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:nutrientloss_vs_rainfall}{{5}{7}{Total nutrient loss as a function of seasonal rainfall for different soil types. The relationship is approximately linear for loamy soils (R² = 0.94) but exhibits threshold behaviour for clay soils, where losses increase rapidly beyond 800 mm seasonal rainfall due to saturation-excess runoff generation. Sandy soils show intermediate sensitivity with a convex response curve, reflecting the dominance of leaching at low intensities and runoff at high intensities. These findings inform the RINDM's real-time nutrient update logic}{figure.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-B}}LSTM Training and Convergence}{7}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-C}}LSTM vs Baseline Comparison}{7}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-D}}Long-Term Nutrient Trajectories}{7}{subsection.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-E}}LSTM Crop Sequence Predictor}{7}{subsection.8.5}\protected@file@percent }
+\newlabel{eq:lstminput}{{11}{7}{LSTM Crop Sequence Predictor}{equation.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-F}}Soil Nutrient Temporal Forecasting}{7}{subsection.8.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Module 5: Economic and Risk Optimization}{7}{section.9}\protected@file@percent }
+\newlabel{sec:module5}{{IX}{7}{Module 5: Economic and Risk Optimization}{section.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-A}}Profit Model}{7}{subsection.9.1}\protected@file@percent }
+\newlabel{eq:profit}{{12}{7}{Profit Model}{equation.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces LSTM training curves for the crop sequence prediction task. Training and validation loss (categorical cross-entropy) are shown over 100 epochs with early stopping (patience = 10). The training loss converges to 0.023, while validation loss stabilises at 0.031, indicating excellent learning without significant overfitting. The gap between training and validation loss remains minimal throughout ($<$0.01 after epoch 40), demonstrating that the LSTM architecture with dropout (p = 0.2) effectively regularises the model while capturing complex temporal dependencies in crop rotation patterns.}}{8}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:lstm_training}{{6}{8}{LSTM training curves for the crop sequence prediction task. Training and validation loss (categorical cross-entropy) are shown over 100 epochs with early stopping (patience = 10). The training loss converges to 0.023, while validation loss stabilises at 0.031, indicating excellent learning without significant overfitting. The gap between training and validation loss remains minimal throughout ($<$0.01 after epoch 40), demonstrating that the LSTM architecture with dropout (p = 0.2) effectively regularises the model while capturing complex temporal dependencies in crop rotation patterns}{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces LSTM vs baseline comparison: R² scores for multi-season soil nutrient forecasting across a 5-season horizon. The LSTM model achieves significantly higher R² values (N: 0.87, P: 0.84, K: 0.89) compared to the ARIMA baseline (N: 0.61, P: 0.52, K: 0.58) and persistence forecast (N: 0.42, P: 0.31, K: 0.38). The superior performance of LSTM is attributed to its ability to capture nonlinear interactions between nutrients, crop uptake patterns, and seasonal variations—relationships that linear ARIMA models cannot adequately represent.}}{8}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:lstm_vs_baseline_r2}{{7}{8}{LSTM vs baseline comparison: R² scores for multi-season soil nutrient forecasting across a 5-season horizon. The LSTM model achieves significantly higher R² values (N: 0.87, P: 0.84, K: 0.89) compared to the ARIMA baseline (N: 0.61, P: 0.52, K: 0.58) and persistence forecast (N: 0.42, P: 0.31, K: 0.38). The superior performance of LSTM is attributed to its ability to capture nonlinear interactions between nutrients, crop uptake patterns, and seasonal variations—relationships that linear ARIMA models cannot adequately represent}{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces LSTM vs baseline comparison: Mean Absolute Error (MAE) for multi-season soil nutrient forecasting. The LSTM model achieves the lowest MAE across all three nutrients (N: 12.3 kg/ha, P: 2.1 kg/ha, K: 15.7 kg/ha), substantially outperforming the ARIMA baseline (N: 24.8 kg/ha, P: 4.9 kg/ha, K: 31.2 kg/ha) and persistence forecast (N: 35.6 kg/ha, P: 7.8 kg/ha, K: 42.3 kg/ha). These results demonstrate that deep learning provides a 50–60\% reduction in forecasting error compared to traditional time series methods, making LSTM the preferred choice for long-term soil nutrient trajectory prediction.}}{8}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:lstm_vs_baseline_mae}{{8}{8}{LSTM vs baseline comparison: Mean Absolute Error (MAE) for multi-season soil nutrient forecasting. The LSTM model achieves the lowest MAE across all three nutrients (N: 12.3 kg/ha, P: 2.1 kg/ha, K: 15.7 kg/ha), substantially outperforming the ARIMA baseline (N: 24.8 kg/ha, P: 4.9 kg/ha, K: 31.2 kg/ha) and persistence forecast (N: 35.6 kg/ha, P: 7.8 kg/ha, K: 42.3 kg/ha). These results demonstrate that deep learning provides a 50–60\% reduction in forecasting error compared to traditional time series methods, making LSTM the preferred choice for long-term soil nutrient trajectory prediction}{figure.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Nutrient depletion trajectories over multiple seasons under different crop rotation strategies. The figure compares N–P–K levels for three scenarios: (a) continuous maize cultivation (high depletion, N decreases from 120 to 45 kg/ha over 10 seasons), (b) maize–legume rotation (sustainable, N maintained above 90 kg/ha), and (c) fallow regeneration (N recovers from 60 to 105 kg/ha). The maize–legume rotation maintains soil fertility above critical thresholds (N $>$ 80 kg/ha, P $>$ 15 kg/ha, K $>$ 120 kg/ha) for 10+ seasons, demonstrating that strategic crop rotation can sustain productivity without excessive fertiliser input.}}{8}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:nutrient_over_season}{{9}{8}{Nutrient depletion trajectories over multiple seasons under different crop rotation strategies. The figure compares N–P–K levels for three scenarios: (a) continuous maize cultivation (high depletion, N decreases from 120 to 45 kg/ha over 10 seasons), (b) maize–legume rotation (sustainable, N maintained above 90 kg/ha), and (c) fallow regeneration (N recovers from 60 to 105 kg/ha). The maize–legume rotation maintains soil fertility above critical thresholds (N $>$ 80 kg/ha, P $>$ 15 kg/ha, K $>$ 120 kg/ha) for 10+ seasons, demonstrating that strategic crop rotation can sustain productivity without excessive fertiliser input}{figure.caption.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-B}}Monte Carlo Simulation}{8}{subsection.9.2}\protected@file@percent }
+\newlabel{eq:mcp}{{13}{8}{Monte Carlo Simulation}{equation.13}{}}
+\newlabel{eq:mcy}{{14}{8}{Monte Carlo Simulation}{equation.14}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {8}{\ignorespaces LSTM Crop Sequence Prediction}}{9}{algorithm.8}\protected@file@percent }
+\newlabel{alg:lstm}{{8}{9}{LSTM Crop Sequence Prediction}{algorithm.8}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {9}{\ignorespaces Nutrient Trend Forecasting (Prophet/ARIMA)}}{9}{algorithm.9}\protected@file@percent }
+\newlabel{alg:forecast}{{9}{9}{Nutrient Trend Forecasting (Prophet/ARIMA)}{algorithm.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-C}}Monte Carlo Convergence Analysis}{9}{subsection.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-D}}Q-Learning for Multi-Season Crop Policy}{9}{subsection.9.4}\protected@file@percent }
+\newlabel{eq:eprofit}{{15}{9}{Q-Learning for Multi-Season Crop Policy}{equation.15}{}}
+\newlabel{eq:var}{{16}{9}{Q-Learning for Multi-Season Crop Policy}{equation.16}{}}
+\newlabel{eq:cvar}{{17}{9}{Q-Learning for Multi-Season Crop Policy}{equation.17}{}}
+\newlabel{eq:ploss}{{18}{9}{Q-Learning for Multi-Season Crop Policy}{equation.18}{}}
+\newlabel{eq:sharpe}{{19}{9}{Q-Learning for Multi-Season Crop Policy}{equation.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-E}}Q-Learning MDP Formulation}{9}{subsection.9.5}\protected@file@percent }
+\newlabel{eq:bellman}{{20}{9}{Q-Learning MDP Formulation}{equation.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Monte Carlo Simulation Convergence: Standard deviation of the estimated expected profit as a function of the number of simulation iterations. The standard deviation decreases rapidly from approximately Rs. 4,500 at 100 iterations to Rs. 850 at 5,000 iterations, then stabilises near Rs. 620 after approximately 8,000 iterations. This convergence behaviour validates the choice of 10,000 scenarios for reliable risk metrics (VaR, CVaR, and loss probability). The stabilisation indicates that additional iterations beyond 10,000 would yield diminishing improvements in estimation accuracy while increasing computational cost.}}{9}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:mc_convergence}{{10}{9}{Monte Carlo Simulation Convergence: Standard deviation of the estimated expected profit as a function of the number of simulation iterations. The standard deviation decreases rapidly from approximately Rs. 4,500 at 100 iterations to Rs. 850 at 5,000 iterations, then stabilises near Rs. 620 after approximately 8,000 iterations. This convergence behaviour validates the choice of 10,000 scenarios for reliable risk metrics (VaR, CVaR, and loss probability). The stabilisation indicates that additional iterations beyond 10,000 would yield diminishing improvements in estimation accuracy while increasing computational cost}{figure.caption.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces Q-Learning training convergence: Cumulative reward per episode over 1,000 training episodes for the multi-season crop rotation policy. The agent explores randomly for the first 200 episodes (cumulative reward averaging 1,200), then begins exploiting learned knowledge as the epsilon-greedy exploration rate decays. The policy stabilises after approximately 600 episodes, with cumulative reward converging to approximately 3,800. This indicates that the agent has learned a near-optimal rotation strategy that balances long-term profit with soil sustainability constraints. The small variance after convergence (±150) suggests stable policy performance across different initial conditions.}}{9}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:ql_convergence}{{11}{9}{Q-Learning training convergence: Cumulative reward per episode over 1,000 training episodes for the multi-season crop rotation policy. The agent explores randomly for the first 200 episodes (cumulative reward averaging 1,200), then begins exploiting learned knowledge as the epsilon-greedy exploration rate decays. The policy stabilises after approximately 600 episodes, with cumulative reward converging to approximately 3,800. This indicates that the agent has learned a near-optimal rotation strategy that balances long-term profit with soil sustainability constraints. The small variance after convergence (±150) suggests stable policy performance across different initial conditions}{figure.caption.15}{}}
+\citation{Patel2025,Pawan2024}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {10}{\ignorespaces Monte Carlo Economic Risk Optimiser}}{10}{algorithm.10}\protected@file@percent }
+\newlabel{alg:montecarlo}{{10}{10}{Monte Carlo Economic Risk Optimiser}{algorithm.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-F}}Soil Sustainability Analysis}{10}{subsection.9.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-G}}Parameter Sensitivity Analysis}{10}{subsection.9.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IX-H}}Pareto-Optimal Front}{10}{subsection.9.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {X}Module 6: Decision Output and Feedback}{10}{section.10}\protected@file@percent }
+\newlabel{sec:module6}{{X}{10}{Module 6: Decision Output and Feedback}{section.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {X-A}}Decision Aggregation}{10}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {X-B}}Feedback Loop and Model Retraining}{10}{subsection.10.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {XI}Experiments and Results}{10}{section.11}\protected@file@percent }
+\newlabel{sec:results}{{XI}{10}{Experiments and Results}{section.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-A}}Model Performance}{10}{subsection.11.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-B}}Tools and Technologies}{10}{subsection.11.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Soil sustainability index over a 10-season horizon for three management strategies: (a) profit-maximising without constraints ($\lambda = 0$), (b) profit-maximising with soil penalty ($\lambda = 0.3$), and (c) sustainability-first ($\lambda = 0.7$). The sustainability index is a weighted composite of N (40\%), P (30\%), K (20\%), and organic matter (10\%), normalised to [0,1]. The unconstrained strategy leads to rapid soil degradation (index < 0.3 by season 6, with N dropping below 50 kg/ha). The $\lambda = 0.3$ strategy maintains moderate soil health (index $>$ 0.5) while achieving 85\% of maximum profit. The $\lambda = 0.7$ strategy maintains soil health above 0.7 throughout the 10-season horizon, demonstrating that sustainability-focused rotation policies can preserve long-term productivity without complete sacrifice of profitability.}}{10}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:soil_sustainability}{{12}{10}{Soil sustainability index over a 10-season horizon for three management strategies: (a) profit-maximising without constraints ($\lambda = 0$), (b) profit-maximising with soil penalty ($\lambda = 0.3$), and (c) sustainability-first ($\lambda = 0.7$). The sustainability index is a weighted composite of N (40\%), P (30\%), K (20\%), and organic matter (10\%), normalised to [0,1]. The unconstrained strategy leads to rapid soil degradation (index < 0.3 by season 6, with N dropping below 50 kg/ha). The $\lambda = 0.3$ strategy maintains moderate soil health (index $>$ 0.5) while achieving 85\% of maximum profit. The $\lambda = 0.7$ strategy maintains soil health above 0.7 throughout the 10-season horizon, demonstrating that sustainability-focused rotation policies can preserve long-term productivity without complete sacrifice of profitability}{figure.caption.16}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Sensitivity analysis of key model parameters. The tornado plot shows the impact of ±20\% variation in each input parameter on the expected profit ($\mathbb  {E}[\pi ]$) for a representative rice crop. Crop selling price (Rs./quintal) has the largest influence, with a +20\% change increasing profit by 32\% and a -20\% change decreasing profit by 28\%. Yield (quintal/ha) shows similar sensitivity (±25\%). Fertiliser cost and discount rate have moderate effects (±8–12\%), while soil initial N and P show smaller but non-negligible sensitivity (±3–5\%), as they affect crop suitability and thus indirect profit through yield potential. This analysis informs farmers which factors require the most accurate estimation for reliable profit prediction.}}{10}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:sensitivity_analysis}{{13}{10}{Sensitivity analysis of key model parameters. The tornado plot shows the impact of ±20\% variation in each input parameter on the expected profit ($\mathbb {E}[\pi ]$) for a representative rice crop. Crop selling price (Rs./quintal) has the largest influence, with a +20\% change increasing profit by 32\% and a -20\% change decreasing profit by 28\%. Yield (quintal/ha) shows similar sensitivity (±25\%). Fertiliser cost and discount rate have moderate effects (±8–12\%), while soil initial N and P show smaller but non-negligible sensitivity (±3–5\%), as they affect crop suitability and thus indirect profit through yield potential. This analysis informs farmers which factors require the most accurate estimation for reliable profit prediction}{figure.caption.17}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {11}{\ignorespaces Pareto Front Identification}}{11}{algorithm.11}\protected@file@percent }
+\newlabel{alg:pareto}{{11}{11}{Pareto Front Identification}{algorithm.11}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {12}{\ignorespaces Decision Generation}}{11}{algorithm.12}\protected@file@percent }
+\newlabel{alg:decision}{{12}{11}{Decision Generation}{algorithm.12}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {13}{\ignorespaces Post-Harvest Feedback Integration}}{11}{algorithm.13}\protected@file@percent }
+\newlabel{alg:feedback}{{13}{11}{Post-Harvest Feedback Integration}{algorithm.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Model Performance Comparison (Test Set: 440 Samples)}}{11}{table.caption.18}\protected@file@percent }
+\newlabel{tab:accuracy}{{V}{11}{Model Performance Comparison (Test Set: 440 Samples)}{table.caption.18}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Tools and Libraries per Module}}{11}{table.caption.19}\protected@file@percent }
+\newlabel{tab:tools}{{VI}{11}{Tools and Libraries per Module}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {XI-C}}Discussion}{11}{subsection.11.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {XII}Conclusion and Future Work}{11}{section.12}\protected@file@percent }
+\newlabel{sec:conclusion}{{XII}{11}{Conclusion and Future Work}{section.12}{}}
+\bibstyle{IEEEtran}
+\bibcite{Alam2025}{1}
+\bibcite{Mahmood2024}{2}
+\bibcite{Kumar2025}{3}
+\bibcite{Osibo2025}{4}
+\bibcite{Wang2024}{5}
+\bibcite{Patel2025}{6}
+\bibcite{Pawan2024}{7}
+\bibcite{Turgut2024}{8}
+\bibcite{Anushri2024}{9}
+\bibcite{Tripathi2025}{10}
+\bibcite{Anusha2023}{11}
+\bibcite{Pandey2025}{12}
+\bibcite{KumarS2024}{13}
+\bibcite{Sundararajan2025}{14}
+\bibcite{Vidhya2023}{15}
+\bibcite{CropDataset}{16}
+\bibcite{Liakos2018}{17}
+\bibcite{Kerkad2026}{18}
+\bibcite{Ghersa2024}{19}
+\bibcite{Bhavana2025}{20}
+\bibcite{Ramezani2023}{21}
+\bibcite{Ramos2024}{22}
+\bibcite{Tamilselvi2025}{23}
+\bibcite{Ray2023}{24}
+\bibcite{Shahid2024}{25}
+\bibcite{Gupta2021}{26}
+\bibcite{Yu2020}{27}
+\bibcite{Muhammed2023}{28}
+\bibcite{Khan2022}{29}
+\bibcite{Nikam2022}{30}
+\@writefile{toc}{\contentsline {section}{References}{12}{section*.20}\protected@file@percent }
+\gdef \@abspage@last{12}
